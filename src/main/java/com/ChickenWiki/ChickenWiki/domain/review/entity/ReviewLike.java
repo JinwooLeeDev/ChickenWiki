@@ -9,24 +9,20 @@ import java.time.LocalDateTime;
 @Entity
 @Getter
 @NoArgsConstructor
-@Table(name = "TEST_reviews")
-public class Review {
+@Table(name = "TEST_review_likes", uniqueConstraints = @UniqueConstraint(columnNames = {"userId", "reviewId"}))
+public class ReviewLike {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    private Long menuId;
-    private String author;
-    private Integer rating;
-    private String content;
+    private Long userId;
+    private Long reviewId;
     private LocalDateTime createdAt;
 
-    public Review(Long menuId, String author, Integer rating, String content) {
-        this.menuId = menuId;
-        this.author = author;
-        this.rating = rating;
-        this.content = content;
+    public ReviewLike(Long userId, Long reviewId) {
+        this.userId = userId;
+        this.reviewId = reviewId;
         this.createdAt = LocalDateTime.now();
     }
 }
