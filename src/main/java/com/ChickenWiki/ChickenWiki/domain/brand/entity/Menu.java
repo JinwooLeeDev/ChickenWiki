@@ -1,8 +1,14 @@
 package com.ChickenWiki.ChickenWiki.domain.brand.entity;
 
-import jakarta.persistence.*;
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+import jakarta.persistence.Table;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
+
 import java.time.LocalDateTime;
 
 @Entity
@@ -15,11 +21,22 @@ public class Menu {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    @Column(name = "menu_name", nullable = false)
     private String menuName;
+
+    @Column(name = "menu_price")
     private Integer menuPrice;
+
+    @Column(name = "menu_image_url")
     private String menuImageUrl;
+
+    @Column(name = "description")
     private String description;
+
+    @Column(name = "brand_name", nullable = false)
     private String brandName;
+
+    @Column(name = "crawled_at", nullable = false)
     private LocalDateTime crawledAt;
 
     public Menu(String menuName, Integer menuPrice, String menuImageUrl,
