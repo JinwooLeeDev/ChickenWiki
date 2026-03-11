@@ -10,36 +10,63 @@ import org.jsoup.nodes.Document;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.ArrayList;
+import java.util.List;
+
 @Service
 @RequiredArgsConstructor
 public class BBQCrawlerService {
 
     private final MenuRepository menuRepository;
-    private final ObjectMapper objectMapper = new ObjectMapper(); // ✅ 여기만 다시 원복
+    private final ObjectMapper objectMapper = new ObjectMapper();
 
     @Transactional
     public void crawlBbqMenu() throws Exception {
         System.out.println("BBQ 크롤링 시작...");
 
-        Document doc = Jsoup.connect("https://www.bbq.co.kr/api/delivery/menu/2")
-                .ignoreContentType(true)
-                .get();
+        List<Menu> menus = new ArrayList<>();
 
-        JsonNode items = objectMapper.readTree(doc.body().text());
+        for (int categoryId = 2; categoryId <= 6; categoryId++) {
+            String url = "https://www.bbq.co.kr/api/delivery/menu/" + categoryId;
+            System.out.println("크롤링 중 URL: " + url);
 
-        menuRepository.deleteByBrandName("BBQ");
+            Document doc = Jsoup.connect(url)
+                    .ignoreContentType(true)
+                    .get();
 
-        for (JsonNode item : items) {
-            Menu menu = new Menu(
-                    item.get("menuName").asText(),
-                    item.get("menuPrice").asInt(),
-                    item.get("menuImageUrl").asText(),
-                    item.get("description").asText(),
-                    "BBQ"
-            );
-            menuRepository.save(menu);
+            JsonNode items = objectMapper.readTree(doc.body().text());
+
+            for (JsonNode item : items) {
+                String menuName = getTextValue(item, "menuName");
+                Integer menuPrice = getIntValue(item, "menuPrice");
+                String menuImageUrl = getTextValue(item, "menuImageUrl");
+                String description = getTextValue(item, "description");
+
+                Menu menu = new Menu(
+                        menuName,
+                        menuPrice,
+                        menuImageUrl,
+                        description,
+                        "BBQ"
+                );
+
+                menus.add(menu);
+            }
         }
 
-        System.out.println("BBQ 크롤링 완료!");
+        menuRepository.deleteByBrandName("BBQ");
+        menuRepository.saveAll(menus);
+
+        System.out.println("BBQ 크롤링 완료! 저장 건수: " + menus.size());
+    }
+
+    private String getTextValue(JsonNode item, String fieldName) {
+        JsonNode node = item.get(fieldName);
+        return node != null && !node.isNull() ? node.asText() : "";
+    }
+
+    private Integer getIntValue(JsonNode item, String fieldName) {
+        JsonNode node = item.get(fieldName);
+        return node != null && !node.isNull() ? node.asInt() : 0;
     }
 }
