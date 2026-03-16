@@ -1,19 +1,29 @@
 import React, { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import Header from "./Header";
 import { getBrands, getBrandReviews } from "../services/api";
 
 function BrandCard({ brand, reviews }) {
+  const navigate = useNavigate();
+
   return (
-    <div style={{
-      background: '#1a1a1a',
-      padding: 12,
-      borderRadius: 8,
-      width: 240,
-      color: 'white',
-      display: 'flex',
-      flexDirection: 'column',
-      gap: 6
-    }}>
+    <div
+      style={{
+        background: '#1a1a1a',
+        padding: 12,
+        borderRadius: 8,
+        width: 240,
+        color: 'white',
+        display: 'flex',
+        flexDirection: 'column',
+        gap: 6,
+        cursor: 'pointer',
+        transition: 'transform 0.2s',
+      }}
+      onClick={() => navigate(`/brand/${brand.id}`)}
+      onMouseEnter={(e) => e.currentTarget.style.transform = 'scale(1.05)'}
+      onMouseLeave={(e) => e.currentTarget.style.transform = 'scale(1)'}
+    >
       <div style={{ height: 100, background: '#0f0f0f', borderRadius: 6, marginBottom: 4 }} />
       <div style={{ fontWeight: 700, fontSize: 16 }}>{brand.name}</div>
       {reviews && reviews.length > 0 ? (
