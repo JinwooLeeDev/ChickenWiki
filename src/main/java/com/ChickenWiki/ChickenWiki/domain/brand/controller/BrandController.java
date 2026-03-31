@@ -24,6 +24,11 @@ public class BrandController {
         return brandService.findAllBrands();
     }
 
+    @GetMapping("/{id}")
+    public BrandDto getBrand(@PathVariable Long id) {
+        return brandService.findBrandById(id);
+    }
+
     @GetMapping("/{id}/menus")
     public List<MenuDto> menus(@PathVariable Long id) {
         return brandService.findMenusByBrandId(id);

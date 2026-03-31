@@ -9,15 +9,20 @@ import java.time.LocalDateTime;
 @Entity
 @Getter
 @NoArgsConstructor
-@Table(name = "TEST_review_likes", uniqueConstraints = @UniqueConstraint(columnNames = {"userId", "reviewId"}))
+@Table(name = "review_likes", uniqueConstraints = @UniqueConstraint(columnNames = {"user_id", "review_id"}))
 public class ReviewLike {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    @Column(name = "user_id")
     private Long userId;
+
+    @Column(name = "review_id")
     private Long reviewId;
+
+    @Column(name = "created_at")
     private LocalDateTime createdAt;
 
     public ReviewLike(Long userId, Long reviewId) {
