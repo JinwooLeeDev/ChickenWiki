@@ -5,21 +5,23 @@ export default function LoginPage() {
   return (
     <div style={{ padding: 28, maxWidth: 400, margin: "0 auto" }}>
       <Header />
-      <h2>로그인</h2>
+      <h2>{"\uB85C\uADF8\uC778"}</h2>
       <form>
         <div style={{ marginBottom: 12 }}>
           <label>
-            아이디
+            {"\uC544\uC774\uB514"}
             <input type="text" name="username" style={{ width: "100%", padding: 8, marginTop: 4 }} />
           </label>
         </div>
         <div style={{ marginBottom: 12 }}>
           <label>
-            비밀번호
+            {"\uBE44\uBC00\uBC88\uD638"}
             <input type="password" name="password" style={{ width: "100%", padding: 8, marginTop: 4 }} />
           </label>
         </div>
-        <button type="submit" style={{ padding: "10px 16px" }}>로그인</button>
+        <button type="submit" style={{ padding: "10px 16px" }}>
+          {"\uB85C\uADF8\uC778"}
+        </button>
       </form>
     </div>
   );

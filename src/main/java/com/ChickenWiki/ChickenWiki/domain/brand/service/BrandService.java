@@ -33,6 +33,12 @@ public class BrandService {
                 .collect(Collectors.toList());
     }
 
+    public BrandDto findBrandById(Long id) {
+        Brand brand = brandRepository.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("브랜드가 없습니다: " + id));
+        return toDto(brand);
+    }
+
     public List<MenuDto> findMenusByBrandId(Long brandId) {
         Brand brand = brandRepository.findById(brandId)
                 .orElseThrow(() -> new IllegalArgumentException("브랜드가 없습니다: " + brandId));

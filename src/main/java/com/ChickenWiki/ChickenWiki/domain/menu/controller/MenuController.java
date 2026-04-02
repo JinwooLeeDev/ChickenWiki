@@ -3,6 +3,7 @@ package com.ChickenWiki.ChickenWiki.domain.menu.controller;
 import com.ChickenWiki.ChickenWiki.domain.brand.dto.MenuDto;
 import com.ChickenWiki.ChickenWiki.domain.menu.service.MenuService;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -20,5 +21,10 @@ public class MenuController {
     @GetMapping
     public List<MenuDto> listAll() {
         return menuService.findAllMenus();
+    }
+
+    @GetMapping("/{menuId}")
+    public MenuDto getMenu(@PathVariable Long menuId) {
+        return menuService.findMenuById(menuId);
     }
 }
