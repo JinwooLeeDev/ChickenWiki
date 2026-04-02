@@ -10,6 +10,7 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 
 import java.time.LocalDateTime;
+import java.util.Objects;
 
 @Entity
 @Getter
@@ -80,5 +81,15 @@ public class Menu {
         this.menuImageUrl = menuImageUrl;
         this.description = description;
         this.crawledAt = LocalDateTime.now();
+    }
+
+    public boolean hasSameContent(String menuName,
+                                  Integer menuPrice,
+                                  String menuImageUrl,
+                                  String description) {
+        return Objects.equals(this.menuName, menuName)
+                && Objects.equals(this.menuPrice, menuPrice)
+                && Objects.equals(this.menuImageUrl, menuImageUrl)
+                && Objects.equals(this.description, description);
     }
 }

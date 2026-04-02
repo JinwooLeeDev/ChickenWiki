@@ -39,32 +39,34 @@ public class MenuCrawlSyncService {
         for (CrawledMenuSnapshot crawledMenu : crawledMenus) {
             Menu menu = existingMenuMap.get(crawledMenu.getSourceMenuId());
 
-            if (menu != null) {
-                menu.updateMenuInfo(
-                        crawledMenu.getMenuName(),
-                        crawledMenu.getMenuPrice(),
-                        crawledMenu.getMenuImageUrl(),
-                        crawledMenu.getDescription()
-                );
-            } else {
-                menu = new Menu(
+            if (menu == null) {
+                menu = menuRepository.save(new Menu(
                         crawledMenu.getSourceMenuId(),
                         crawledMenu.getMenuName(),
                         crawledMenu.getMenuPrice(),
                         crawledMenu.getMenuImageUrl(),
                         crawledMenu.getDescription(),
                         crawledMenu.getBrandName()
+                ));
+            } else if (!menu.hasSameContent(
+                    crawledMenu.getMenuName(),
+                    crawledMenu.getMenuPrice(),
+                    crawledMenu.getMenuImageUrl(),
+                    crawledMenu.getDescription())) {
+                menu.updateMenuInfo(
+                        crawledMenu.getMenuName(),
+                        crawledMenu.getMenuPrice(),
+                        crawledMenu.getMenuImageUrl(),
+                        crawledMenu.getDescription()
                 );
+                menu = menuRepository.save(menu);
             }
-
-            Menu savedMenu = menuRepository.save(menu);
-
-            menuTagMappingRepository.deleteByMenuIdAndTagTagType(savedMenu.getId(), TagType.ORIGINAL);
-            menuTagMappingRepository.flush();
 
             for (String originalTagName : crawledMenu.getOriginalTags()) {
                 Tag tag = getOrCreateTag(originalTagName, TagType.ORIGINAL, brandName);
-                menuTagMappingRepository.save(new MenuTagMapping(savedMenu, tag));
+                if (!menuTagMappingRepository.existsByMenuIdAndTagId(menu.getId(), tag.getId())) {
+                    menuTagMappingRepository.save(new MenuTagMapping(menu, tag));
+                }
             }
         }
     }
