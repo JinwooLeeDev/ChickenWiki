@@ -2,6 +2,7 @@ package com.ChickenWiki.ChickenWiki.domain.crawling.service;
 
 import com.ChickenWiki.ChickenWiki.domain.crawling.model.CrawledMenuSnapshot;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
@@ -15,6 +16,7 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 
 @Service
+@Slf4j
 @RequiredArgsConstructor
 public class KyochonCrawlerService {
 
@@ -40,13 +42,13 @@ public class KyochonCrawlerService {
 
     @Transactional
     public void crawlKyochonMenu() throws Exception {
-        System.out.println("교촌치킨 크롤링 시작...");
+        log.info("교촌치킨 크롤링 시작");
 
         Map<Long, CrawledMenuSnapshot> crawledMenuMap = new LinkedHashMap<>();
 
         for (CategoryCode categoryCode : CATEGORY_CODES) {
             String url = MENU_URL + "?code=" + encode(categoryCode.code);
-            System.out.println("교촌 크롤링 URL: " + url);
+            log.debug("교촌 카테고리 수집 중: {} ({})", categoryCode.label, url);
 
             Document doc = Jsoup.connect(url)
                     .userAgent("Mozilla/5.0")
@@ -91,7 +93,7 @@ public class KyochonCrawlerService {
         }
 
         menuCrawlSyncService.sync(BRAND_NAME, crawledMenuMap.values());
-        System.out.println("교촌치킨 크롤링 완료! 저장 건수: " + crawledMenuMap.size());
+        log.info("교촌치킨 크롤링 완료 - 수집 메뉴 수: {}", crawledMenuMap.size());
     }
 
     private boolean shouldSaveMenu(String menuName, String description) {

@@ -4,6 +4,7 @@ import com.ChickenWiki.ChickenWiki.domain.crawling.model.CrawledMenuSnapshot;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
 import org.springframework.stereotype.Service;
@@ -13,6 +14,7 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 
 @Service
+@Slf4j
 @RequiredArgsConstructor
 public class BHCCrawlerService {
 
@@ -27,7 +29,7 @@ public class BHCCrawlerService {
 
     @Transactional
     public void crawlBhcMenu() throws Exception {
-        System.out.println("BHC 크롤링 시작...");
+        log.info("BHC 크롤링 시작");
 
         Map<Long, CrawledMenuSnapshot> crawledMenuMap = new LinkedHashMap<>();
 
@@ -58,7 +60,7 @@ public class BHCCrawlerService {
             }
 
             String productsUrl = CATEGORY_PRODUCTS_URL_PREFIX + topCateId + "/products";
-            System.out.println("BHC 카테고리 크롤링 중: " + topCateName + " / " + productsUrl);
+            log.debug("BHC 카테고리 수집 중: {} ({})", topCateName, productsUrl);
 
             Document productsDoc = Jsoup.connect(productsUrl)
                     .ignoreContentType(true)
@@ -119,7 +121,7 @@ public class BHCCrawlerService {
         }
 
         menuCrawlSyncService.sync(BRAND_NAME, crawledMenuMap.values());
-        System.out.println("BHC 크롤링 완료! 저장 건수: " + crawledMenuMap.size());
+        log.info("BHC 크롤링 완료 - 수집 메뉴 수: {}", crawledMenuMap.size());
     }
 
     private boolean isChickenTopCategory(String topCateName) {

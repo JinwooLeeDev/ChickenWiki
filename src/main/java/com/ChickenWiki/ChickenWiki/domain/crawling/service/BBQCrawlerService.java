@@ -4,6 +4,7 @@ import com.ChickenWiki.ChickenWiki.domain.crawling.model.CrawledMenuSnapshot;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
 import org.springframework.stereotype.Service;
@@ -13,6 +14,7 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 
 @Service
+@Slf4j
 @RequiredArgsConstructor
 public class BBQCrawlerService {
 
@@ -36,7 +38,7 @@ public class BBQCrawlerService {
 
     @Transactional
     public void crawlBbqMenu() throws Exception {
-        System.out.println("BBQ 크롤링 시작...");
+        log.info("BBQ 크롤링 시작");
 
         Map<Long, CrawledMenuSnapshot> crawledMenuMap = new LinkedHashMap<>();
 
@@ -45,7 +47,7 @@ public class BBQCrawlerService {
             String originCategory = entry.getValue();
 
             String url = "https://www.bbq.co.kr/api/delivery/menu/" + categoryId;
-            System.out.println("크롤링 중 URL: " + url);
+            log.debug("BBQ 카테고리 수집 중: {} ({})", originCategory, url);
 
             Document doc = Jsoup.connect(url)
                     .ignoreContentType(true)
@@ -91,7 +93,7 @@ public class BBQCrawlerService {
         }
 
         menuCrawlSyncService.sync(BRAND_NAME, crawledMenuMap.values());
-        System.out.println("BBQ 크롤링 완료! 저장 건수: " + crawledMenuMap.size());
+        log.info("BBQ 크롤링 완료 - 수집 메뉴 수: {}", crawledMenuMap.size());
     }
 
     private boolean shouldSaveMenu(JsonNode item) {

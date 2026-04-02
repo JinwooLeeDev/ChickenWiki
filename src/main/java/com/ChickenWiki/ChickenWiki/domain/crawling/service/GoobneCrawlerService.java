@@ -2,6 +2,7 @@ package com.ChickenWiki.ChickenWiki.domain.crawling.service;
 
 import com.ChickenWiki.ChickenWiki.domain.crawling.model.CrawledMenuSnapshot;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.jsoup.Connection;
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
@@ -16,6 +17,7 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 
 @Service
+@Slf4j
 @RequiredArgsConstructor
 public class GoobneCrawlerService {
 
@@ -41,7 +43,7 @@ public class GoobneCrawlerService {
 
     @Transactional
     public void crawlGoobneMenu() throws Exception {
-        System.out.println("굽네치킨 크롤링 시작...");
+        log.info("굽네치킨 크롤링 시작");
 
         Map<Long, CrawledMenuSnapshot> crawledMenuMap = new LinkedHashMap<>();
 
@@ -55,19 +57,19 @@ public class GoobneCrawlerService {
                     + "&quickDeliverySeq="
                     + "&dlvType=";
 
-            System.out.println("굽네 목록 크롤링 URL: " + url);
+            log.debug("굽네 목록 수집 중: {} > {} ({})", pair.mainCategoryName, pair.subCategoryName, url);
 
             Document listDoc;
             try {
                 listDoc = createHtmlConnection(url, LIST_URL).get();
                 crawlRequestDelayService.pause();
             } catch (Exception e) {
-                System.out.println("[LIST FAIL] url=" + url + ", error=" + e.getMessage());
+                log.warn("굽네 목록 요청 실패 - url={}, error={}", url, e.getMessage());
                 continue;
             }
 
             Elements items = listDoc.select(".menu-grid a.item");
-            System.out.println("목록 개수: " + items.size());
+            log.debug("굽네 목록 개수: {}", items.size());
 
             for (Element item : items) {
                 String itemIdText = extractItemId(item.attr("onclick"));
@@ -79,7 +81,7 @@ public class GoobneCrawlerService {
                 String description = "";
 
                 if (sourceMenuId == null || menuName.isBlank()) {
-                    System.out.println("[SKIP] itemId 또는 menuName 비어있음");
+                    log.debug("굽네 메뉴 건너뜀 - itemId 또는 menuName 비어 있음");
                     continue;
                 }
 
@@ -105,10 +107,8 @@ public class GoobneCrawlerService {
                     if (!detailDescription.isBlank()) {
                         description = detailDescription;
                     }
-
-                    System.out.println("[DETAIL] itemId=" + itemIdText + ", menuName=" + menuName);
                 } catch (Exception e) {
-                    System.out.println("[DETAIL FAIL] itemId=" + itemIdText + ", error=" + e.getMessage());
+                    log.warn("굽네 상세 요청 실패 - itemId={}, error={}", itemIdText, e.getMessage());
                 }
 
                 menuName = cleanText(menuName);
@@ -116,7 +116,7 @@ public class GoobneCrawlerService {
                 description = cleanDescription(description);
 
                 if (!shouldSaveMenu(menuName, description)) {
-                    System.out.println("[FILTERED] itemId=" + itemIdText + ", menuName=" + menuName);
+                    log.debug("굽네 메뉴 필터링 - itemId={}, menuName={}", itemIdText, menuName);
                     continue;
                 }
 
@@ -139,12 +139,11 @@ public class GoobneCrawlerService {
                 data.addOriginalTag(pair.subCategoryName);
 
                 crawledMenuMap.put(sourceMenuId, data);
-                System.out.println("[ADD] itemId=" + itemIdText + ", menuName=" + menuName + ", price=" + menuPrice);
             }
         }
 
         menuCrawlSyncService.sync(BRAND_NAME, crawledMenuMap.values());
-        System.out.println("굽네치킨 크롤링 완료! 저장 건수: " + crawledMenuMap.size());
+        log.info("굽네치킨 크롤링 완료 - 수집 메뉴 수: {}", crawledMenuMap.size());
     }
 
     private boolean shouldSaveMenu(String menuName, String description) {
