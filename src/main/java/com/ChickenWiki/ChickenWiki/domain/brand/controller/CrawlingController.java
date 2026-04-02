@@ -1,45 +1,66 @@
 package com.ChickenWiki.ChickenWiki.domain.brand.controller;
 
-import com.ChickenWiki.ChickenWiki.domain.crawling.service.BBQCrawlerService;
-import com.ChickenWiki.ChickenWiki.domain.crawling.service.BHCCrawlerService;
-import com.ChickenWiki.ChickenWiki.domain.crawling.service.GoobneCrawlerService;
-import com.ChickenWiki.ChickenWiki.domain.crawling.service.KyochonCrawlerService;
+import com.ChickenWiki.ChickenWiki.domain.crawling.service.CrawlOrchestratorService;
+import com.ChickenWiki.ChickenWiki.domain.crawling.service.CrawlRunResult;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.server.ResponseStatusException;
 
 @RestController
 @RequestMapping("/api/crawl")
 @RequiredArgsConstructor
 public class CrawlingController {
 
-    private final BBQCrawlerService bbqCrawlerService;
-    private final BHCCrawlerService bhcCrawlerService;
-    private final KyochonCrawlerService kyochonCrawlerService;
-    private final GoobneCrawlerService goobneCrawlerService;
+    private final CrawlOrchestratorService crawlOrchestratorService;
+
+    @Value("${app.crawling.admin-token:}")
+    private String adminToken;
 
     @GetMapping("/bbq")
-    public String crawlBbq() throws Exception {
-        bbqCrawlerService.crawlBbqMenu();
-        return "BBQ 크롤링 완료!";
+    public ResponseEntity<String> crawlBbq(@RequestHeader(value = "X-Crawl-Token", required = false) String crawlToken) throws Exception {
+        return runManualCrawl("bbq", crawlToken);
     }
 
     @GetMapping("/bhc")
-    public String crawlBhc() throws Exception {
-        bhcCrawlerService.crawlBhcMenu();
-        return "BHC 크롤링 완료!";
+    public ResponseEntity<String> crawlBhc(@RequestHeader(value = "X-Crawl-Token", required = false) String crawlToken) throws Exception {
+        return runManualCrawl("bhc", crawlToken);
     }
 
     @GetMapping("/kyochon")
-    public String crawlKyochon() throws Exception {
-        kyochonCrawlerService.crawlKyochonMenu();
-        return "교촌치킨 크롤링 완료!";
+    public ResponseEntity<String> crawlKyochon(@RequestHeader(value = "X-Crawl-Token", required = false) String crawlToken) throws Exception {
+        return runManualCrawl("kyochon", crawlToken);
     }
 
     @GetMapping("/goobne")
-    public String crawlGoobne() throws Exception {
-        goobneCrawlerService.crawlGoobneMenu();
-        return "굽네치킨 크롤링 완료!";
+    public ResponseEntity<String> crawlGoobne(@RequestHeader(value = "X-Crawl-Token", required = false) String crawlToken) throws Exception {
+        return runManualCrawl("goobne", crawlToken);
+    }
+
+    private ResponseEntity<String> runManualCrawl(String brandCode, String crawlToken) throws Exception {
+        validateManualAccess(crawlToken);
+        CrawlRunResult result = crawlOrchestratorService.runManual(brandCode);
+
+        return switch (result.getType()) {
+            case SUCCESS -> ResponseEntity.ok(result.getMessage());
+            case SKIPPED_RECENTLY -> ResponseEntity.status(HttpStatus.ACCEPTED)
+                    .body(result.getMessage() + " 다음 허용 시각: " + result.getNextAllowedAt());
+            case ALREADY_RUNNING -> ResponseEntity.status(HttpStatus.CONFLICT).body(result.getMessage());
+        };
+    }
+
+    private void validateManualAccess(String crawlToken) {
+        if (adminToken == null || adminToken.isBlank()) {
+            return;
+        }
+
+        if (!adminToken.equals(crawlToken)) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "유효한 크롤링 토큰이 필요합니다.");
+        }
     }
 }

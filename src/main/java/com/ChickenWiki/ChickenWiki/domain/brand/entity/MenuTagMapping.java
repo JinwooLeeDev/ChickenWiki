@@ -32,12 +32,16 @@ public class MenuTagMapping {
     @JoinColumn(name = "tag_id", nullable = false)
     private Tag tag;
 
+    @Column(name = "source_menu_id")
+    private Long sourceMenuId;
+
     @Column(name = "created_at", nullable = false)
     private LocalDateTime createdAt;
 
     public MenuTagMapping(Menu menu, Tag tag) {
         this.menu = menu;
         this.tag = tag;
+        this.sourceMenuId = menu.getSourceMenuId();
         this.createdAt = LocalDateTime.now();
     }
 }

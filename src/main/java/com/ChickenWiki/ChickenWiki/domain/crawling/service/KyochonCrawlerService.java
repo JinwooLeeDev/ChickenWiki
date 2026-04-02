@@ -1,12 +1,6 @@
 package com.ChickenWiki.ChickenWiki.domain.crawling.service;
 
-import com.ChickenWiki.ChickenWiki.domain.brand.entity.Menu;
-import com.ChickenWiki.ChickenWiki.domain.brand.entity.MenuTagMapping;
-import com.ChickenWiki.ChickenWiki.domain.brand.entity.Tag;
-import com.ChickenWiki.ChickenWiki.domain.brand.entity.TagType;
-import com.ChickenWiki.ChickenWiki.domain.brand.repository.MenuRepository;
-import com.ChickenWiki.ChickenWiki.domain.brand.repository.MenuTagMappingRepository;
-import com.ChickenWiki.ChickenWiki.domain.brand.repository.TagRepository;
+import com.ChickenWiki.ChickenWiki.domain.crawling.model.CrawledMenuSnapshot;
 import lombok.RequiredArgsConstructor;
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
@@ -18,11 +12,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.util.LinkedHashMap;
-import java.util.LinkedHashSet;
-import java.util.List;
 import java.util.Map;
-import java.util.Set;
-import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -45,15 +35,14 @@ public class KyochonCrawlerService {
             new CategoryCode("20", "살살시리즈")
     };
 
-    private final MenuRepository menuRepository;
-    private final TagRepository tagRepository;
-    private final MenuTagMappingRepository menuTagMappingRepository;
+    private final MenuCrawlSyncService menuCrawlSyncService;
+    private final CrawlRequestDelayService crawlRequestDelayService;
 
     @Transactional
     public void crawlKyochonMenu() throws Exception {
         System.out.println("교촌치킨 크롤링 시작...");
 
-        Map<Long, CrawledMenuData> crawledMenuMap = new LinkedHashMap<>();
+        Map<Long, CrawledMenuSnapshot> crawledMenuMap = new LinkedHashMap<>();
 
         for (CategoryCode categoryCode : CATEGORY_CODES) {
             String url = MENU_URL + "?code=" + encode(categoryCode.code);
@@ -63,6 +52,7 @@ public class KyochonCrawlerService {
                     .userAgent("Mozilla/5.0")
                     .timeout(10000)
                     .get();
+            crawlRequestDelayService.pause();
 
             Elements menuElements = doc.select("ul.menuProduct > li");
 
@@ -86,7 +76,7 @@ public class KyochonCrawlerService {
                     continue;
                 }
 
-                CrawledMenuData data = new CrawledMenuData(
+                CrawledMenuSnapshot data = new CrawledMenuSnapshot(
                         sourceMenuId,
                         menuName,
                         menuPrice,
@@ -100,64 +90,10 @@ public class KyochonCrawlerService {
             }
         }
 
-        // 기존 교촌 메뉴 조회
-        List<Menu> existingMenus = menuRepository.findByBrandName(BRAND_NAME);
-        Map<Long, Menu> existingMenuMap = existingMenus.stream()
-                .filter(menu -> menu.getSourceMenuId() != null)
-                .collect(Collectors.toMap(Menu::getSourceMenuId, menu -> menu));
-
-        Set<Long> crawledIds = crawledMenuMap.keySet();
-
-        // upsert + ORIGINAL 태그 갱신
-        for (CrawledMenuData data : crawledMenuMap.values()) {
-            Menu menu;
-
-            if (existingMenuMap.containsKey(data.getSourceMenuId())) {
-                menu = existingMenuMap.get(data.getSourceMenuId());
-                menu.updateMenuInfo(
-                        data.getMenuName(),
-                        data.getMenuPrice(),
-                        data.getMenuImageUrl(),
-                        data.getDescription()
-                );
-            } else {
-                menu = new Menu(
-                        data.getSourceMenuId(),
-                        data.getMenuName(),
-                        data.getMenuPrice(),
-                        data.getMenuImageUrl(),
-                        data.getDescription(),
-                        data.getBrandName()
-                );
-            }
-
-            Menu savedMenu = menuRepository.save(menu);
-
-            // ORIGINAL 태그만 삭제 후 다시 연결
-            menuTagMappingRepository.deleteByMenuIdAndTagTagType(savedMenu.getId(), TagType.ORIGINAL);
-            menuTagMappingRepository.flush();
-
-            for (String originalTagName : data.getOriginalTags()) {
-                Tag originalTag = getOrCreateTag(originalTagName, TagType.ORIGINAL, BRAND_NAME);
-                menuTagMappingRepository.save(new MenuTagMapping(savedMenu, originalTag));
-            }
-        }
-
-        // 이번 크롤링 결과에 없는 기존 메뉴 삭제
-        for (Menu existingMenu : existingMenus) {
-            Long sourceMenuId = existingMenu.getSourceMenuId();
-            if (sourceMenuId == null || !crawledIds.contains(sourceMenuId)) {
-                menuRepository.delete(existingMenu);
-            }
-        }
-
+        menuCrawlSyncService.sync(BRAND_NAME, crawledMenuMap.values());
         System.out.println("교촌치킨 크롤링 완료! 저장 건수: " + crawledMenuMap.size());
     }
 
-    /**
-     * 현재 수집 대상은 전부 치킨 시리즈이므로,
-     * 세트성 메뉴만 제외한다.
-     */
     private boolean shouldSaveMenu(String menuName, String description) {
         String merged = (menuName + " " + description).replace("\n", " ");
 
@@ -166,11 +102,6 @@ public class KyochonCrawlerService {
         }
 
         return true;
-    }
-
-    private Tag getOrCreateTag(String tagName, TagType tagType, String brandName) {
-        return tagRepository.findByNameAndTagTypeAndBrandName(tagName, tagType, brandName)
-                .orElseGet(() -> tagRepository.save(new Tag(tagName, tagType, brandName)));
     }
 
     private Long extractSourceMenuId(Element element) {
@@ -184,7 +115,6 @@ public class KyochonCrawlerService {
             return null;
         }
 
-        // 예: view.asp?id=41130&cg=2
         int idIndex = href.indexOf("id=");
         if (idIndex == -1) {
             return null;
@@ -298,64 +228,6 @@ public class KyochonCrawlerService {
         public CategoryCode(String code, String label) {
             this.code = code;
             this.label = label;
-        }
-    }
-
-    private static class CrawledMenuData {
-        private final Long sourceMenuId;
-        private final String menuName;
-        private final Integer menuPrice;
-        private final String menuImageUrl;
-        private final String description;
-        private final String brandName;
-        private final LinkedHashSet<String> originalTags = new LinkedHashSet<>();
-
-        public CrawledMenuData(Long sourceMenuId,
-                               String menuName,
-                               Integer menuPrice,
-                               String menuImageUrl,
-                               String description,
-                               String brandName) {
-            this.sourceMenuId = sourceMenuId;
-            this.menuName = menuName;
-            this.menuPrice = menuPrice;
-            this.menuImageUrl = menuImageUrl;
-            this.description = description;
-            this.brandName = brandName;
-        }
-
-        public void addOriginalTag(String tagName) {
-            if (tagName != null && !tagName.isBlank()) {
-                this.originalTags.add(tagName);
-            }
-        }
-
-        public Long getSourceMenuId() {
-            return sourceMenuId;
-        }
-
-        public String getMenuName() {
-            return menuName;
-        }
-
-        public Integer getMenuPrice() {
-            return menuPrice;
-        }
-
-        public String getMenuImageUrl() {
-            return menuImageUrl;
-        }
-
-        public String getDescription() {
-            return description;
-        }
-
-        public String getBrandName() {
-            return brandName;
-        }
-
-        public LinkedHashSet<String> getOriginalTags() {
-            return originalTags;
         }
     }
 }

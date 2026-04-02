@@ -33,27 +33,23 @@ public class BrandService {
                 .collect(Collectors.toList());
     }
 
-    public BrandDto findBrandById(Long id) {
-        Brand brand = brandRepository.findById(id)
-                .orElseThrow(() -> new IllegalArgumentException("브랜드가 없습니다: " + id));
+    public BrandDto findBrandById(Long brandId) {
+        Brand brand = brandRepository.findById(brandId)
+                .orElseThrow(() -> new IllegalArgumentException("브랜드가 없습니다: " + brandId));
         return toDto(brand);
     }
 
     public List<MenuDto> findMenusByBrandId(Long brandId) {
         Brand brand = brandRepository.findById(brandId)
                 .orElseThrow(() -> new IllegalArgumentException("브랜드가 없습니다: " + brandId));
-        List<Menu> menus = menuRepository.findAll().stream()
-                .filter(m -> brand.getName().equals(m.getBrandName()))
-                .collect(Collectors.toList());
+        List<Menu> menus = menuRepository.findByBrandName(brand.getName());
         return menus.stream().map(this::toDto).collect(Collectors.toList());
     }
 
     public List<com.ChickenWiki.ChickenWiki.domain.review.dto.ReviewDto> findTopReviewsByBrandId(Long brandId) {
         Brand brand = brandRepository.findById(brandId)
                 .orElseThrow(() -> new IllegalArgumentException("브랜드가 없습니다: " + brandId));
-        List<Menu> menus = menuRepository.findAll().stream()
-                .filter(m -> brand.getName().equals(m.getBrandName()))
-                .collect(Collectors.toList());
+        List<Menu> menus = menuRepository.findByBrandName(brand.getName());
         if (menus.isEmpty()) {
             return List.of();
         }
@@ -67,6 +63,7 @@ public class BrandService {
                         r.getId(), r.getMenuId(), r.getAuthor(), r.getRating(), r.getContent(), r.getCreatedAt()))
                 .collect(Collectors.toList());
     }
+
     private BrandDto toDto(Brand b) {
         return new BrandDto(b.getId(), b.getName(), b.getLogoUrl());
     }

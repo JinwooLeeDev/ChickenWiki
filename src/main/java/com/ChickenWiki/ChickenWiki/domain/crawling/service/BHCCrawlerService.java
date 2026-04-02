@@ -1,12 +1,6 @@
 package com.ChickenWiki.ChickenWiki.domain.crawling.service;
 
-import com.ChickenWiki.ChickenWiki.domain.brand.entity.Menu;
-import com.ChickenWiki.ChickenWiki.domain.brand.entity.MenuTagMapping;
-import com.ChickenWiki.ChickenWiki.domain.brand.entity.Tag;
-import com.ChickenWiki.ChickenWiki.domain.brand.entity.TagType;
-import com.ChickenWiki.ChickenWiki.domain.brand.repository.MenuRepository;
-import com.ChickenWiki.ChickenWiki.domain.brand.repository.MenuTagMappingRepository;
-import com.ChickenWiki.ChickenWiki.domain.brand.repository.TagRepository;
+import com.ChickenWiki.ChickenWiki.domain.crawling.model.CrawledMenuSnapshot;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
@@ -16,11 +10,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.LinkedHashMap;
-import java.util.LinkedHashSet;
-import java.util.List;
 import java.util.Map;
-import java.util.Set;
-import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -31,22 +21,22 @@ public class BHCCrawlerService {
     private static final String CATEGORY_PRODUCTS_URL_PREFIX = "https://www.bhc.co.kr/api/v1/web/categories/";
     private static final String DETAIL_API_URL_PREFIX = "https://www.bhc.co.kr/api/v1/web/products/";
 
-    private final MenuRepository menuRepository;
-    private final TagRepository tagRepository;
-    private final MenuTagMappingRepository menuTagMappingRepository;
+    private final MenuCrawlSyncService menuCrawlSyncService;
+    private final CrawlRequestDelayService crawlRequestDelayService;
     private final ObjectMapper objectMapper = new ObjectMapper();
 
     @Transactional
     public void crawlBhcMenu() throws Exception {
         System.out.println("BHC 크롤링 시작...");
 
-        Map<Long, CrawledMenuData> crawledMenuMap = new LinkedHashMap<>();
+        Map<Long, CrawledMenuSnapshot> crawledMenuMap = new LinkedHashMap<>();
 
         Document categoryDoc = Jsoup.connect(CATEGORY_LIST_URL)
                 .ignoreContentType(true)
                 .userAgent("Mozilla/5.0")
                 .timeout(10000)
                 .get();
+        crawlRequestDelayService.pause();
 
         JsonNode categoryRoot = objectMapper.readTree(categoryDoc.body().text());
         JsonNode categoryBody = categoryRoot.get("body");
@@ -75,6 +65,7 @@ public class BHCCrawlerService {
                     .userAgent("Mozilla/5.0")
                     .timeout(10000)
                     .get();
+            crawlRequestDelayService.pause();
 
             JsonNode productsRoot = objectMapper.readTree(productsDoc.body().text());
             JsonNode productsBody = productsRoot.get("body");
@@ -103,14 +94,14 @@ public class BHCCrawlerService {
                 }
 
                 if (crawledMenuMap.containsKey(sourceMenuId)) {
-                    CrawledMenuData existing = crawledMenuMap.get(sourceMenuId);
+                    CrawledMenuSnapshot existing = crawledMenuMap.get(sourceMenuId);
                     existing.addOriginalTag(topCateName);
                     addProductOriginalTags(existing, item);
                     addOriginalFlags(existing, item);
                     continue;
                 }
 
-                CrawledMenuData data = new CrawledMenuData(
+                CrawledMenuSnapshot data = new CrawledMenuSnapshot(
                         sourceMenuId,
                         menuName,
                         menuPrice,
@@ -127,77 +118,16 @@ public class BHCCrawlerService {
             }
         }
 
-        // 기존 BHC 메뉴 조회
-        List<Menu> existingMenus = menuRepository.findByBrandName(BRAND_NAME);
-        Map<Long, Menu> existingMenuMap = existingMenus.stream()
-                .filter(menu -> menu.getSourceMenuId() != null)
-                .collect(Collectors.toMap(Menu::getSourceMenuId, menu -> menu));
-
-        Set<Long> crawledIds = crawledMenuMap.keySet();
-
-        // upsert + ORIGINAL 태그 갱신
-        for (CrawledMenuData data : crawledMenuMap.values()) {
-            Menu menu;
-
-            if (existingMenuMap.containsKey(data.getSourceMenuId())) {
-                menu = existingMenuMap.get(data.getSourceMenuId());
-                menu.updateMenuInfo(
-                        data.getMenuName(),
-                        data.getMenuPrice(),
-                        data.getMenuImageUrl(),
-                        data.getDescription()
-                );
-            } else {
-                menu = new Menu(
-                        data.getSourceMenuId(),
-                        data.getMenuName(),
-                        data.getMenuPrice(),
-                        data.getMenuImageUrl(),
-                        data.getDescription(),
-                        data.getBrandName()
-                );
-            }
-
-            Menu savedMenu = menuRepository.save(menu);
-
-            // ORIGINAL 태그만 삭제 후 다시 연결
-            menuTagMappingRepository.deleteByMenuIdAndTagTagType(savedMenu.getId(), TagType.ORIGINAL);
-            menuTagMappingRepository.flush();
-            
-            for (String originalTagName : data.getOriginalTags()) {
-                Tag originalTag = getOrCreateTag(originalTagName, TagType.ORIGINAL, BRAND_NAME);
-                menuTagMappingRepository.save(new MenuTagMapping(savedMenu, originalTag));
-            }
-        }
-
-        // 이번 크롤링 결과에 없는 기존 메뉴 삭제
-        for (Menu existingMenu : existingMenus) {
-            Long sourceMenuId = existingMenu.getSourceMenuId();
-            if (sourceMenuId == null || !crawledIds.contains(sourceMenuId)) {
-                menuRepository.delete(existingMenu);
-            }
-        }
-
+        menuCrawlSyncService.sync(BRAND_NAME, crawledMenuMap.values());
         System.out.println("BHC 크롤링 완료! 저장 건수: " + crawledMenuMap.size());
     }
 
-    /**
-     * 치킨으로 볼 상위 카테고리만 허용
-     */
     private boolean isChickenTopCategory(String topCateName) {
         return "치킨".equals(topCateName)
                 || "신메뉴".equals(topCateName)
                 || "BHC시그니처".equals(topCateName);
     }
 
-    /**
-     * 오로지 치킨 메뉴만 저장
-     * 제외:
-     * - 콜팝
-     * - 세트류 / 혼치세트
-     * - 라이스 / 볶음밥 결합 메뉴
-     * - 치즈볼/콜라 결합 메뉴
-     */
     private boolean shouldSaveMenu(JsonNode item, String topCateName) {
         if (!isChickenTopCategory(topCateName)) {
             return false;
@@ -223,10 +153,7 @@ public class BHCCrawlerService {
         return true;
     }
 
-    /**
-     * 상품 응답의 cateNm 배열을 ORIGINAL 태그로 저장
-     */
-    private void addProductOriginalTags(CrawledMenuData data, JsonNode item) {
+    private void addProductOriginalTags(CrawledMenuSnapshot data, JsonNode item) {
         JsonNode cateNmNode = item.get("cateNm");
         if (cateNmNode == null || !cateNmNode.isArray()) {
             return;
@@ -240,10 +167,7 @@ public class BHCCrawlerService {
         }
     }
 
-    /**
-     * BHC가 원래 주는 플래그는 SERVICE가 아니라 ORIGINAL 태그로 저장
-     */
-    private void addOriginalFlags(CrawledMenuData data, JsonNode item) {
+    private void addOriginalFlags(CrawledMenuSnapshot data, JsonNode item) {
         String isNew = getTextValue(item, "isNew");
         String isBest = getTextValue(item, "isBest");
         String isLimited = getTextValue(item, "isLimited");
@@ -261,10 +185,6 @@ public class BHCCrawlerService {
         }
     }
 
-    /**
-     * 상세 API에서 가격 조회
-     * 실패하면 0
-     */
     private Integer fetchPriceByProductCd(Long productCd) {
         try {
             String detailUrl = DETAIL_API_URL_PREFIX + productCd;
@@ -274,6 +194,7 @@ public class BHCCrawlerService {
                     .userAgent("Mozilla/5.0")
                     .timeout(10000)
                     .get();
+            crawlRequestDelayService.pause();
 
             JsonNode detailRoot = objectMapper.readTree(detailDoc.body().text());
             JsonNode detailBody = detailRoot.get("body");
@@ -287,11 +208,6 @@ public class BHCCrawlerService {
         } catch (Exception e) {
             return 0;
         }
-    }
-
-    private Tag getOrCreateTag(String tagName, TagType tagType, String brandName) {
-        return tagRepository.findByNameAndTagTypeAndBrandName(tagName, tagType, brandName)
-                .orElseGet(() -> tagRepository.save(new Tag(tagName, tagType, brandName)));
     }
 
     private String getDescriptionFromList(JsonNode item) {
@@ -354,63 +270,5 @@ public class BHCCrawlerService {
                 .replaceAll("[ \t]+", " ")
                 .replaceAll("\n{2,}", "\n")
                 .trim();
-    }
-
-    private static class CrawledMenuData {
-        private final Long sourceMenuId;
-        private final String menuName;
-        private final Integer menuPrice;
-        private final String menuImageUrl;
-        private final String description;
-        private final String brandName;
-        private final LinkedHashSet<String> originalTags = new LinkedHashSet<>();
-
-        public CrawledMenuData(Long sourceMenuId,
-                               String menuName,
-                               Integer menuPrice,
-                               String menuImageUrl,
-                               String description,
-                               String brandName) {
-            this.sourceMenuId = sourceMenuId;
-            this.menuName = menuName;
-            this.menuPrice = menuPrice;
-            this.menuImageUrl = menuImageUrl;
-            this.description = description;
-            this.brandName = brandName;
-        }
-
-        public void addOriginalTag(String tagName) {
-            if (tagName != null && !tagName.isBlank()) {
-                this.originalTags.add(tagName);
-            }
-        }
-
-        public Long getSourceMenuId() {
-            return sourceMenuId;
-        }
-
-        public String getMenuName() {
-            return menuName;
-        }
-
-        public Integer getMenuPrice() {
-            return menuPrice;
-        }
-
-        public String getMenuImageUrl() {
-            return menuImageUrl;
-        }
-
-        public String getDescription() {
-            return description;
-        }
-
-        public String getBrandName() {
-            return brandName;
-        }
-
-        public LinkedHashSet<String> getOriginalTags() {
-            return originalTags;
-        }
     }
 }
