@@ -35,14 +35,5 @@ public class DataInitializer implements CommandLineRunner {
             // 이미 데이터가 있는 경우 초기화를 건너뛴다.
             return;
         }
-
-        Brand b1 = brandRepository.save(new Brand("교촌치킨", "https://example.com/logo1.png"));
-        Brand b2 = brandRepository.save(new Brand("BBQ", "https://example.com/logo2.png"));
-
-        Menu m1 = menuRepository.save(new Menu("허니콤보", 20000, "", "허니콤보 설명", b1.getName()));
-        Menu m2 = menuRepository.save(new Menu("황금올리브", 25000, "", "황금올리브 설명", b2.getName()));
-
-        reviewRepository.save(new Review(m1.getId(), "홍길동", 5, "정말 맛있어요!"));
-        reviewRepository.save(new Review(m1.getId(), "김철수", 4, "달달하니 좋네요."));
     }
 }
