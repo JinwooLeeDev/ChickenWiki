@@ -42,14 +42,14 @@ public class BrandService {
     public List<MenuDto> findMenusByBrandId(Long brandId) {
         Brand brand = brandRepository.findById(brandId)
                 .orElseThrow(() -> new IllegalArgumentException("브랜드가 없습니다: " + brandId));
-        List<Menu> menus = menuRepository.findByBrandName(brand.getName());
+        List<Menu> menus = menuRepository.findByBrandNameAndActiveTrue(brand.getName());
         return menus.stream().map(this::toDto).collect(Collectors.toList());
     }
 
     public List<com.ChickenWiki.ChickenWiki.domain.review.dto.ReviewDto> findTopReviewsByBrandId(Long brandId) {
         Brand brand = brandRepository.findById(brandId)
                 .orElseThrow(() -> new IllegalArgumentException("브랜드가 없습니다: " + brandId));
-        List<Menu> menus = menuRepository.findByBrandName(brand.getName());
+        List<Menu> menus = menuRepository.findByBrandNameAndActiveTrue(brand.getName());
         if (menus.isEmpty()) {
             return List.of();
         }

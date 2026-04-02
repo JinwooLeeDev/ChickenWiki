@@ -20,13 +20,13 @@ public class MenuService {
     }
 
     public List<MenuDto> findAllMenus() {
-        return menuRepository.findAll().stream()
+        return menuRepository.findAllByActiveTrue().stream()
                 .map(this::toDto)
                 .collect(Collectors.toList());
     }
 
     public MenuDto findMenuById(Long menuId) {
-        Menu menu = menuRepository.findById(menuId)
+        Menu menu = menuRepository.findByIdAndActiveTrue(menuId)
                 .orElseThrow(() -> new IllegalArgumentException("메뉴가 없습니다: " + menuId));
         return toDto(menu);
     }

@@ -13,8 +13,10 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.Collection;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 @Service
@@ -35,8 +37,10 @@ public class MenuCrawlSyncService {
         Map<Long, Menu> existingMenuMap = existingMenus.stream()
                 .filter(menu -> menu.getSourceMenuId() != null)
                 .collect(Collectors.toMap(Menu::getSourceMenuId, menu -> menu, (left, right) -> left));
+        Set<Long> crawledSourceMenuIds = new HashSet<>();
 
         for (CrawledMenuSnapshot crawledMenu : crawledMenus) {
+            crawledSourceMenuIds.add(crawledMenu.getSourceMenuId());
             Menu menu = existingMenuMap.get(crawledMenu.getSourceMenuId());
 
             if (menu == null) {
@@ -60,6 +64,9 @@ public class MenuCrawlSyncService {
                         crawledMenu.getDescription()
                 );
                 menu = menuRepository.save(menu);
+            } else if (!menu.isActive()) {
+                menu.reactivate();
+                menu = menuRepository.save(menu);
             }
 
             for (String originalTagName : crawledMenu.getOriginalTags()) {
@@ -67,6 +74,16 @@ public class MenuCrawlSyncService {
                 if (!menuTagMappingRepository.existsByMenuIdAndTagId(menu.getId(), tag.getId())) {
                     menuTagMappingRepository.save(new MenuTagMapping(menu, tag));
                 }
+            }
+        }
+
+        for (Menu existingMenu : existingMenus) {
+            if (existingMenu.getSourceMenuId() == null) {
+                continue;
+            }
+            if (!crawledSourceMenuIds.contains(existingMenu.getSourceMenuId()) && existingMenu.isActive()) {
+                existingMenu.deactivate();
+                menuRepository.save(existingMenu);
             }
         }
     }

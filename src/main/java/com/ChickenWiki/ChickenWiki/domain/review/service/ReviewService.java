@@ -1,5 +1,6 @@
 package com.ChickenWiki.ChickenWiki.domain.review.service;
 
+import com.ChickenWiki.ChickenWiki.domain.brand.repository.MenuRepository;
 import com.ChickenWiki.ChickenWiki.domain.review.dto.ReviewCreateRequest;
 import com.ChickenWiki.ChickenWiki.domain.review.dto.ReviewDto;
 import com.ChickenWiki.ChickenWiki.domain.review.entity.Review;
@@ -16,18 +17,23 @@ import java.util.stream.Collectors;
 public class ReviewService {
 
     private final ReviewRepository reviewRepository;
+    private final MenuRepository menuRepository;
 
-    public ReviewService(ReviewRepository reviewRepository) {
+    public ReviewService(ReviewRepository reviewRepository, MenuRepository menuRepository) {
         this.reviewRepository = reviewRepository;
+        this.menuRepository = menuRepository;
     }
 
     public List<ReviewDto> findByMenuId(Long menuId) {
+        ensureActiveMenu(menuId);
         return reviewRepository.findByMenuIdOrderByCreatedAtDesc(menuId).stream()
                 .map(this::toDto)
                 .collect(Collectors.toList());
     }
 
     public ReviewDto create(Long menuId, ReviewCreateRequest request) {
+        ensureActiveMenu(menuId);
+
         String author = request.getAuthor() == null || request.getAuthor().isBlank()
                 ? "Anonymous"
                 : request.getAuthor().trim();
@@ -48,5 +54,10 @@ public class ReviewService {
 
     private ReviewDto toDto(Review r) {
         return new ReviewDto(r.getId(), r.getMenuId(), r.getAuthor(), r.getRating(), r.getContent(), r.getCreatedAt());
+    }
+
+    private void ensureActiveMenu(Long menuId) {
+        menuRepository.findByIdAndActiveTrue(menuId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "메뉴가 없습니다: " + menuId));
     }
 }

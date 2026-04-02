@@ -13,6 +13,9 @@ public interface MenuRepository extends JpaRepository<Menu, Long> {
     void deleteByBrandName(String brandName);
     Optional<Menu> findByBrandNameAndSourceMenuId(String brandName, Long sourceMenuId);
     List<Menu> findByBrandName(String brandName);
+    List<Menu> findByBrandNameAndActiveTrue(String brandName);
+    List<Menu> findAllByActiveTrue();
+    Optional<Menu> findByIdAndActiveTrue(Long id);
 
     @Query("select max(m.crawledAt) from Menu m where m.brandName = :brandName")
     Optional<LocalDateTime> findLatestCrawledAtByBrandName(@Param("brandName") String brandName);

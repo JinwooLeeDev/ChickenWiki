@@ -40,6 +40,9 @@ public class Menu {
     @Column(name = "brand_name", nullable = false)
     private String brandName;
 
+    @Column(name = "is_active", nullable = false)
+    private boolean active;
+
     @Column(name = "crawled_at", nullable = false)
     private LocalDateTime crawledAt;
 
@@ -55,6 +58,7 @@ public class Menu {
         this.menuImageUrl = menuImageUrl;
         this.description = description;
         this.brandName = brandName;
+        this.active = true;
         this.crawledAt = LocalDateTime.now();
     }
 
@@ -69,6 +73,7 @@ public class Menu {
         this.menuImageUrl = menuImageUrl;
         this.description = description;
         this.brandName = brandName;
+        this.active = true;
         this.crawledAt = LocalDateTime.now();
     }
 
@@ -80,7 +85,17 @@ public class Menu {
         this.menuPrice = menuPrice;
         this.menuImageUrl = menuImageUrl;
         this.description = description;
+        this.active = true;
         this.crawledAt = LocalDateTime.now();
+    }
+
+    public void reactivate() {
+        this.active = true;
+        this.crawledAt = LocalDateTime.now();
+    }
+
+    public void deactivate() {
+        this.active = false;
     }
 
     public boolean hasSameContent(String menuName,
