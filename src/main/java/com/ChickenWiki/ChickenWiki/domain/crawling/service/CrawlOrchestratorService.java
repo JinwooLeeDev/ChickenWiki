@@ -7,15 +7,22 @@ import org.springframework.stereotype.Service;
 
 import java.time.Duration;
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.ReentrantLock;
 
 @Service
 @RequiredArgsConstructor
 public class CrawlOrchestratorService {
+
+    private static final List<String> ALL_BRAND_CODES = List.of("bbq", "bhc", "kyochon", "goobne");
 
     private final BBQCrawlerService bbqCrawlerService;
     private final BHCCrawlerService bhcCrawlerService;
@@ -36,6 +43,50 @@ public class CrawlOrchestratorService {
         return run(brandCode);
     }
 
+    public List<CrawlRunResult> runAllManual() {
+        return runAllSafely();
+    }
+
+    public List<CrawlRunResult> runAllScheduled() {
+        return runAllSafely();
+    }
+
+    private List<CrawlRunResult> runAllSafely() {
+        ExecutorService executor = Executors.newFixedThreadPool(ALL_BRAND_CODES.size());
+        try {
+            List<CompletableFuture<CrawlRunResult>> futures = ALL_BRAND_CODES.stream()
+                    .map(brandCode -> CompletableFuture.supplyAsync(() -> safeRun(brandCode), executor))
+                    .toList();
+
+            return futures.stream()
+                    .map(CompletableFuture::join)
+                    .toList();
+        } finally {
+            executor.shutdown();
+            try {
+                if (!executor.awaitTermination(5, TimeUnit.SECONDS)) {
+                    executor.shutdownNow();
+                }
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                executor.shutdownNow();
+            }
+        }
+    }
+
+    private CrawlRunResult safeRun(String brandCode) {
+        BrandCrawlDefinition definition = BrandCrawlDefinition.from(brandCode);
+        try {
+            return run(brandCode);
+        } catch (Exception e) {
+            return CrawlRunResult.failed(
+                    definition.brandCode(),
+                    definition.brandName(),
+                    definition.brandName() + " 크롤링 실패: " + safeMessage(e)
+            );
+        }
+    }
+
     private CrawlRunResult run(String brandCode) throws Exception {
         BrandCrawlDefinition definition = BrandCrawlDefinition.from(brandCode);
         ReentrantLock lock = brandLocks.computeIfAbsent(definition.brandCode(), key -> new ReentrantLock());
@@ -49,10 +100,12 @@ public class CrawlOrchestratorService {
         }
 
         try {
-            Duration minimumInterval = Duration.ofDays(Math.max(1, minimumIntervalDays));
+            Duration minimumInterval = Duration.ofDays(Math.max(0, minimumIntervalDays));
             Optional<LocalDateTime> lastSuccessfulCrawl = menuRepository.findLatestCrawledAtByBrandName(definition.brandName());
 
-            if (lastSuccessfulCrawl.isPresent() && lastSuccessfulCrawl.get().plus(minimumInterval).isAfter(LocalDateTime.now())) {
+            if (!minimumInterval.isZero()
+                    && lastSuccessfulCrawl.isPresent()
+                    && lastSuccessfulCrawl.get().plus(minimumInterval).isAfter(LocalDateTime.now())) {
                 return CrawlRunResult.skippedRecently(
                         definition.brandCode(),
                         definition.brandName(),
@@ -80,6 +133,13 @@ public class CrawlOrchestratorService {
             case "goobne" -> goobneCrawlerService.crawlGoobneMenu();
             default -> throw new IllegalArgumentException("지원하지 않는 브랜드 코드입니다: " + definition.brandCode());
         }
+    }
+
+    private String safeMessage(Exception exception) {
+        if (exception == null || exception.getMessage() == null || exception.getMessage().isBlank()) {
+            return "원인을 확인하지 못했습니다.";
+        }
+        return exception.getMessage();
     }
 
     private record BrandCrawlDefinition(String brandCode, String brandName) {

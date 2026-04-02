@@ -6,6 +6,8 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
+import java.util.List;
+
 @Component
 @RequiredArgsConstructor
 public class CrawlingScheduler {
@@ -16,25 +18,19 @@ public class CrawlingScheduler {
     public void scheduleAllCrawling() {
         System.out.println("전체 크롤링 스케줄 시작...");
 
-        runScheduled("bbq");
-        runScheduled("bhc");
-        runScheduled("kyochon");
-        runScheduled("goobne");
+        List<CrawlRunResult> results = crawlOrchestratorService.runAllScheduled();
+        logResults(results);
 
         System.out.println("전체 크롤링 스케줄 종료...");
     }
 
-    private void runScheduled(String brandCode) {
-        try {
-            CrawlRunResult result = crawlOrchestratorService.runScheduled(brandCode);
+    private void logResults(List<CrawlRunResult> results) {
+        for (CrawlRunResult result : results) {
             String message = result.getMessage();
             if (result.getType() == CrawlRunResult.Type.SKIPPED_RECENTLY && result.getNextAllowedAt() != null) {
                 message += " 다음 허용 시각: " + result.getNextAllowedAt();
             }
             System.out.println(message);
-        } catch (Exception e) {
-            System.out.println(brandCode + " 크롤링 실패: " + e.getMessage());
-            e.printStackTrace();
         }
     }
 }

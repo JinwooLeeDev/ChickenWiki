@@ -7,7 +7,8 @@ public class CrawlRunResult {
     public enum Type {
         SUCCESS,
         SKIPPED_RECENTLY,
-        ALREADY_RUNNING
+        ALREADY_RUNNING,
+        FAILED
     }
 
     private final Type type;
@@ -41,6 +42,10 @@ public class CrawlRunResult {
 
     public static CrawlRunResult alreadyRunning(String brandCode, String brandName, String message) {
         return new CrawlRunResult(Type.ALREADY_RUNNING, brandCode, brandName, message, null);
+    }
+
+    public static CrawlRunResult failed(String brandCode, String brandName, String message) {
+        return new CrawlRunResult(Type.FAILED, brandCode, brandName, message, null);
     }
 
     public Type getType() {
