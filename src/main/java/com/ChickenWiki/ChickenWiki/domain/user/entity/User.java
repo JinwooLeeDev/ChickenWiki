@@ -19,6 +19,8 @@ public class User {
     private String nickname;
     private String password;
     private String role;
+
+    @Column(name = "created_at")
     private LocalDateTime createdAt;
 
     public User(String nickname, String password, String role) {

@@ -3,7 +3,9 @@ package com.ChickenWiki.ChickenWiki.domain.menu.service;
 import com.ChickenWiki.ChickenWiki.domain.brand.dto.MenuDto;
 import com.ChickenWiki.ChickenWiki.domain.brand.entity.Menu;
 import com.ChickenWiki.ChickenWiki.domain.brand.repository.MenuRepository;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
+import org.springframework.web.server.ResponseStatusException;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
@@ -23,6 +25,12 @@ public class MenuService {
         return menuRepository.findAll().stream()
                 .map(this::toDto)
                 .collect(Collectors.toList());
+    }
+
+    public MenuDto findMenuById(Long menuId) {
+        Menu menu = menuRepository.findById(menuId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Menu not found"));
+        return toDto(menu);
     }
 
     private MenuDto toDto(Menu m) {

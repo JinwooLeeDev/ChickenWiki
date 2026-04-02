@@ -16,10 +16,16 @@ public class Review {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    @Column(name = "menu_id")
     private Long menuId;
+
     private String author;
+
     private Integer rating;
+
     private String content;
+
+    @Column(name = "created_at")
     private LocalDateTime createdAt;
 
     public Review(Long menuId, String author, Integer rating, String content) {
