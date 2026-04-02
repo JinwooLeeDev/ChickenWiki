@@ -1,13 +1,11 @@
 package com.ChickenWiki.ChickenWiki.global.config;
 
 import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.context.event.ApplicationReadyEvent;
 import org.springframework.context.event.EventListener;
 import org.springframework.core.env.Environment;
 import org.springframework.stereotype.Component;
 
-@Slf4j
 @Component
 @RequiredArgsConstructor
 public class StartupLinkLogger {
@@ -22,15 +20,17 @@ public class StartupLinkLogger {
         String backendBaseUrl = "http://" + host + ":" + port;
         String frontendUrl = environment.getProperty("app.frontend.url", "").trim();
 
-        log.info("========================================");
-        log.info("ChickenWiki local links");
+        System.out.println();
+        System.out.println("========================================");
+        System.out.println("ChickenWiki local links");
         if (!frontendUrl.isBlank()) {
-            log.info("Frontend : {}", frontendUrl);
+            System.out.println("Frontend : " + frontendUrl);
         }
-        log.info("API root : {}", backendBaseUrl);
-        log.info("Crawl all: {}/api/crawl/all", backendBaseUrl);
-        log.info("Brands   : {}/api/brands", backendBaseUrl);
-        log.info("Menus    : {}/api/menus", backendBaseUrl);
-        log.info("========================================");
+        System.out.println("API root : " + backendBaseUrl);
+        System.out.println("Crawl all: " + backendBaseUrl + "/api/crawl/all");
+        System.out.println("Brands   : " + backendBaseUrl + "/api/brands");
+        System.out.println("Menus    : " + backendBaseUrl + "/api/menus");
+        System.out.println("========================================");
+        System.out.println();
     }
 }
