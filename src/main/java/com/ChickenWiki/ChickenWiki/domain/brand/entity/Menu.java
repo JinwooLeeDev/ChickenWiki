@@ -21,6 +21,9 @@ public class Menu {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    @Column(name = "source_menu_id")
+    private Long sourceMenuId;
+
     @Column(name = "menu_name", nullable = false)
     private String menuName;
 
@@ -39,13 +42,43 @@ public class Menu {
     @Column(name = "crawled_at", nullable = false)
     private LocalDateTime crawledAt;
 
-    public Menu(String menuName, Integer menuPrice, String menuImageUrl,
-                String description, String brandName) {
+    public Menu(Long sourceMenuId,
+                String menuName,
+                Integer menuPrice,
+                String menuImageUrl,
+                String description,
+                String brandName) {
+        this.sourceMenuId = sourceMenuId;
         this.menuName = menuName;
         this.menuPrice = menuPrice;
         this.menuImageUrl = menuImageUrl;
         this.description = description;
         this.brandName = brandName;
+        this.crawledAt = LocalDateTime.now();
+    }
+
+    public Menu(String menuName,
+                Integer menuPrice,
+                String menuImageUrl,
+                String description,
+                String brandName) {
+        this.sourceMenuId = null;
+        this.menuName = menuName;
+        this.menuPrice = menuPrice;
+        this.menuImageUrl = menuImageUrl;
+        this.description = description;
+        this.brandName = brandName;
+        this.crawledAt = LocalDateTime.now();
+    }
+
+    public void updateMenuInfo(String menuName,
+                               Integer menuPrice,
+                               String menuImageUrl,
+                               String description) {
+        this.menuName = menuName;
+        this.menuPrice = menuPrice;
+        this.menuImageUrl = menuImageUrl;
+        this.description = description;
         this.crawledAt = LocalDateTime.now();
     }
 }
