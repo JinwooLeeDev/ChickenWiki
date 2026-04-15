@@ -1,8 +1,10 @@
 import React, { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
+import { useAuth } from "../context/AuthContext";
 import { getBrands } from "../services/api";
 
 export default function Header() {
+  const { user, isLoggedIn, logout } = useAuth();
   const [brands, setBrands] = useState([]);
 
   useEffect(() => {
@@ -55,7 +57,41 @@ export default function Header() {
         </Link>
 
         <nav style={{ display: "flex", gap: 16, fontSize: 15, alignItems: "center" }}>
-          <Link to="/login">{"\uB85C\uADF8\uC778"}</Link>
+          <Link to="/brands">{"\uBE0C\uB79C\uB4DC"}</Link>
+          {isLoggedIn ? (
+            <>
+              <span style={{ color: "#9aa6b2" }}>{user.username}{"\uB2D8"}</span>
+              {user.role === "ADMIN" ? (
+                <span
+                  style={{
+                    color: "#ffd700",
+                    border: "1px solid #5f4b00",
+                    borderRadius: 999,
+                    padding: "0 8px",
+                    fontSize: 12,
+                  }}
+                >
+                  ADMIN
+                </span>
+              ) : null}
+              <button
+                type="button"
+                onClick={logout}
+                style={{
+                  padding: "2px 8px",
+                  borderRadius: 8,
+                  border: "1px solid #444",
+                  background: "transparent",
+                  color: "inherit",
+                  fontSize: 14,
+                }}
+              >
+                {"\uB85C\uADF8\uC544\uC6C3"}
+              </button>
+            </>
+          ) : (
+            <Link to="/login">{"\uB85C\uADF8\uC778"}</Link>
+          )}
         </nav>
       </div>
 

@@ -16,17 +16,21 @@ public class User {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    private String nickname;
+    private String username;
     private String password;
     private String role;
 
     @Column(name = "created_at")
     private LocalDateTime createdAt;
 
-    public User(String nickname, String password, String role) {
-        this.nickname = nickname;
+    public User(String username, String password, String role) {
+        this.username = username;
         this.password = password;
         this.role = role;
         this.createdAt = LocalDateTime.now();
+    }
+
+    public void changePassword(String password) {
+        this.password = password;
     }
 }
