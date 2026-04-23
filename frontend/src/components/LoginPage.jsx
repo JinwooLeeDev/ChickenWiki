@@ -1,185 +1,248 @@
 import React, { useState } from "react";
-import { useNavigate } from "react-router-dom";
-import Header from "./Header";
-import { useAuth } from "../context/AuthContext";
+import { Link, useNavigate } from "react-router-dom";
+import { login, signup } from "../services/api";
 
 export default function LoginPage() {
   const navigate = useNavigate();
-  const { login, signup, isLoggedIn, user } = useAuth();
   const [mode, setMode] = useState("login");
   const [username, setUsername] = useState("");
+  const [nickname, setNickname] = useState("");
   const [password, setPassword] = useState("");
-  const [remember, setRemember] = useState(true);
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
-  const [loading, setLoading] = useState(false);
+  const [successMessage, setSuccessMessage] = useState("");
 
   const isSignup = mode === "signup";
 
+  const resetMessages = () => {
+    setError("");
+    setSuccessMessage("");
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setError("");
-    setLoading(true);
+    resetMessages();
+
+    if (isSignup && password !== confirmPassword) {
+      setError("\uBE44\uBC00\uBC88\uD638 \uD655\uC778\uC774 \uC77C\uCE58\uD558\uC9C0 \uC54A\uC2B5\uB2C8\uB2E4.");
+      return;
+    }
 
     try {
-      const payload = { username, password, remember };
-      if (isSignup) {
-        await signup(payload);
-      } else {
-        await login(payload);
-      }
-      navigate("/", { replace: true });
+      setSubmitting(true);
+
+      const user = isSignup
+        ? await signup({ username, nickname, password })
+        : await login({ username, password });
+
+      localStorage.setItem("chickenwikiUser", JSON.stringify(user));
+      window.dispatchEvent(new Event("chickenwiki-auth-changed"));
+
+      setSuccessMessage(
+        isSignup
+          ? "\uD68C\uC6D0\uAC00\uC785\uC774 \uC644\uB8CC\uB418\uC5C8\uC2B5\uB2C8\uB2E4. \uBC14\uB85C \uB85C\uADF8\uC778 \uC0C1\uD0DC\uB85C \uC774\uB3D9\uD569\uB2C8\uB2E4."
+          : "\uB85C\uADF8\uC778\uB418\uC5C8\uC2B5\uB2C8\uB2E4. \uBA54\uC778 \uD398\uC774\uC9C0\uB85C \uC774\uB3D9\uD569\uB2C8\uB2E4."
+      );
+
+      window.setTimeout(() => {
+        navigate("/");
+      }, 700);
     } catch (err) {
-      setError(err.message || "\uB85C\uADF8\uC778 \uCC98\uB9AC\uC5D0 \uC2E4\uD328\uD588\uC2B5\uB2C8\uB2E4.");
+      setError(err.message || "\uC694\uCCAD \uCC98\uB9AC \uC911 \uBB38\uC81C\uAC00 \uBC1C\uC0DD\uD588\uC2B5\uB2C8\uB2E4.");
     } finally {
-      setLoading(false);
+      setSubmitting(false);
     }
   };
 
+  const inputStyle = {
+    width: "100%",
+    padding: 12,
+    marginTop: 6,
+    borderRadius: 12,
+    border: "1px solid #2f3742",
+    background: "#0f1217",
+    color: "white",
+  };
+
   return (
-    <div style={{ padding: 28, maxWidth: 720, margin: "0 auto" }}>
-      <Header />
-      <section
+    <div
+      style={{
+        minHeight: "100vh",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        padding: 24,
+      }}
+    >
+      <div
         style={{
-          marginTop: 28,
+          width: "100%",
+          maxWidth: 460,
           padding: 28,
-          borderRadius: 18,
-          background: "linear-gradient(180deg, #1f1f1f 0%, #151515 100%)",
-          border: "1px solid #2a2a2a",
-          boxShadow: "0 18px 36px rgba(0, 0, 0, 0.22)",
-          textAlign: "left",
+          borderRadius: 24,
+          background:
+            "radial-gradient(circle at top, rgba(246, 211, 101, 0.16), transparent 35%), linear-gradient(180deg, #1b1d22 0%, #111318 100%)",
+          border: "1px solid #2b2f36",
+          boxShadow: "0 24px 60px rgba(0, 0, 0, 0.3)",
         }}
       >
-        <div style={{ display: "flex", justifyContent: "space-between", gap: 16, alignItems: "center" }}>
-          <div>
-            <h2 style={{ margin: 0 }}>{isSignup ? "\uD68C\uC6D0\uAC00\uC785" : "\uB85C\uADF8\uC778"}</h2>
-            <p style={{ margin: "8px 0 0", color: "#9aa6b2" }}>
-              {isSignup
-                ? "\uB9AC\uBDF0\uB97C \uC791\uC131\uD560 \uACC4\uC815\uC744 \uB9CC\uB4E4\uC5B4\uBCF4\uC138\uC694."
-                : "\uC544\uC774\uB514\uC640 \uBE44\uBC00\uBC88\uD638\uB85C ChickenWiki\uC5D0 \uB85C\uADF8\uC778\uD569\uB2C8\uB2E4."}
-            </p>
+        <Link
+          to="/"
+          style={{
+            display: "inline-flex",
+            marginBottom: 20,
+            color: "#f6d365",
+            fontSize: 14,
+          }}
+        >
+          {"\u2190 \uBA54\uC778\uC73C\uB85C \uB3CC\uC544\uAC00\uAE30"}
+        </Link>
+
+        <div style={{ display: "flex", gap: 10, marginBottom: 18 }}>
+          {[
+            { key: "login", label: "\uB85C\uADF8\uC778" },
+            { key: "signup", label: "\uD68C\uC6D0\uAC00\uC785" },
+          ].map((tab) => (
+            <button
+              key={tab.key}
+              type="button"
+              onClick={() => {
+                setMode(tab.key);
+                resetMessages();
+              }}
+              style={{
+                flex: 1,
+                padding: "12px 14px",
+                borderRadius: 14,
+                border: tab.key === mode ? "1px solid #f6d365" : "1px solid #2f3742",
+                background: tab.key === mode ? "#252019" : "#181b21",
+                color: tab.key === mode ? "#fff2c4" : "#cdd6df",
+                fontWeight: 700,
+              }}
+            >
+              {tab.label}
+            </button>
+          ))}
+        </div>
+
+        <h2 style={{ marginTop: 0, marginBottom: 20, color: "#fff7df" }}>
+          {isSignup ? "ChickenWiki \uD68C\uC6D0\uAC00\uC785" : "ChickenWiki \uB85C\uADF8\uC778"}
+        </h2>
+
+        <form onSubmit={handleSubmit}>
+          <div style={{ marginBottom: 12 }}>
+            <label style={{ color: "#d8dee7", fontSize: 14, fontWeight: 600 }}>
+              {"\uC544\uC774\uB514"}
+              <input
+                type="text"
+                name="username"
+                value={username}
+                onChange={(e) => setUsername(e.target.value)}
+                style={inputStyle}
+              />
+            </label>
           </div>
-          {isLoggedIn ? (
-            <div style={{ color: "#ffd700", fontWeight: 700 }}>
-              {user.username}{"\uB2D8 \uB85C\uADF8\uC778 \uC911"}
+
+          {isSignup ? (
+            <div style={{ marginBottom: 12 }}>
+              <label style={{ color: "#d8dee7", fontSize: 14, fontWeight: 600 }}>
+                {"\uB2C9\uB124\uC784"}
+                <input
+                  type="text"
+                  name="nickname"
+                  value={nickname}
+                  onChange={(e) => setNickname(e.target.value)}
+                  style={inputStyle}
+                />
+              </label>
             </div>
           ) : null}
-        </div>
 
-        <form onSubmit={handleSubmit} style={{ marginTop: 24 }}>
-          <div style={{ marginBottom: 14 }}>
-          <label>
-            {"\uC544\uC774\uB514"}
-            <input
-              type="text"
-              name="username"
-              value={username}
-              onChange={(e) => setUsername(e.target.value)}
-              autoComplete="username"
-              style={{
-                width: "100%",
-                boxSizing: "border-box",
-                padding: "12px 14px",
-                marginTop: 6,
-                borderRadius: 12,
-                border: "1px solid #333",
-                background: "#101010",
-                color: "white",
-                outline: "none",
-              }}
-            />
-          </label>
-        </div>
-          <div style={{ marginBottom: 14 }}>
-          <label>
-            {"\uBE44\uBC00\uBC88\uD638"}
-            <input
-              type="password"
-              name="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              autoComplete={isSignup ? "new-password" : "current-password"}
-              style={{
-                width: "100%",
-                boxSizing: "border-box",
-                padding: "12px 14px",
-                marginTop: 6,
-                borderRadius: 12,
-                border: "1px solid #333",
-                background: "#101010",
-                color: "white",
-                outline: "none",
-              }}
-            />
-          </label>
-        </div>
+          <div style={{ marginBottom: 12 }}>
+            <label style={{ color: "#d8dee7", fontSize: 14, fontWeight: 600 }}>
+              {"\uBE44\uBC00\uBC88\uD638"}
+              <input
+                type="password"
+                name="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                style={inputStyle}
+              />
+            </label>
+          </div>
 
-          <label style={{ display: "flex", gap: 8, alignItems: "center", color: "#c9d1d9", marginBottom: 16 }}>
-            <input
-              type="checkbox"
-              checked={remember}
-              onChange={(e) => setRemember(e.target.checked)}
-            />
-            {"\uC774 \uBE0C\uB77C\uC6B0\uC800\uC5D0\uC11C \uB85C\uADF8\uC778 \uC720\uC9C0"}
-          </label>
+          {isSignup ? (
+            <div style={{ marginBottom: 12 }}>
+              <label style={{ color: "#d8dee7", fontSize: 14, fontWeight: 600 }}>
+                {"\uBE44\uBC00\uBC88\uD638 \uD655\uC778"}
+                <input
+                  type="password"
+                  name="confirmPassword"
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  style={inputStyle}
+                />
+              </label>
+            </div>
+          ) : null}
 
           {error ? (
             <div
               style={{
-                padding: "10px 12px",
+                marginBottom: 12,
+                padding: "12px 14px",
                 borderRadius: 12,
-                background: "rgba(255, 88, 88, 0.12)",
-                color: "#ff8f8f",
-                border: "1px solid rgba(255, 88, 88, 0.28)",
-                marginBottom: 16,
+                background: "#311d20",
+                border: "1px solid #5a3038",
+                color: "#ffccd3",
               }}
             >
               {error}
             </div>
           ) : null}
 
+          {successMessage ? (
+            <div
+              style={{
+                marginBottom: 12,
+                padding: "12px 14px",
+                borderRadius: 12,
+                background: "#1f3124",
+                border: "1px solid #385440",
+                color: "#d6f5dd",
+              }}
+            >
+              {successMessage}
+            </div>
+          ) : null}
+
           <button
             type="submit"
-            disabled={loading}
+            disabled={submitting}
             style={{
               width: "100%",
               padding: "12px 16px",
-              borderRadius: 12,
+              borderRadius: 14,
               border: "none",
-              background: "#ffd700",
-              color: "#161616",
-              fontWeight: 800,
-              cursor: loading ? "not-allowed" : "pointer",
+              background: "#f6d365",
+              color: "#15171b",
+              fontWeight: 700,
+              marginTop: 6,
+              cursor: submitting ? "not-allowed" : "pointer",
+              opacity: submitting ? 0.7 : 1,
             }}
           >
-            {loading
-              ? "\uCC98\uB9AC \uC911..."
+            {submitting
+              ? isSignup
+                ? "\uAC00\uC785 \uCC98\uB9AC \uC911..."
+                : "\uB85C\uADF8\uC778 \uC911..."
               : isSignup
-                ? "\uD68C\uC6D0\uAC00\uC785\uD558\uACE0 \uB85C\uADF8\uC778"
-                : "\uB85C\uADF8\uC778"}
+                ? "\uD68C\uC6D0\uAC00\uC785\uD558\uAE30"
+                : "\uB85C\uADF8\uC778\uD558\uAE30"}
           </button>
         </form>
-
-        <button
-          type="button"
-          onClick={() => {
-            setError("");
-            setMode(isSignup ? "login" : "signup");
-          }}
-          style={{
-            marginTop: 14,
-            width: "100%",
-            padding: "10px 16px",
-            borderRadius: 12,
-            border: "1px solid #333",
-            background: "transparent",
-            color: "#c9d1d9",
-          }}
-        >
-          {isSignup
-            ? "\uC774\uBBF8 \uACC4\uC815\uC774 \uC788\uC5B4\uC694. \uB85C\uADF8\uC778\uD560\uAC8C\uC694."
-            : "\uCC98\uC74C\uC774\uC5D0\uC694. \uD68C\uC6D0\uAC00\uC785\uD560\uAC8C\uC694."}
-        </button>
-      </section>
+      </div>
     </div>
   );
 }

@@ -1,11 +1,12 @@
 :root {
-  font-family: system-ui, Avenir, Helvetica, Arial, sans-serif;
+  font-family: "Segoe UI", "Noto Sans KR", sans-serif;
   line-height: 1.5;
   font-weight: 400;
-
-  color-scheme: light dark;
-  color: rgba(255, 255, 255, 0.87);
-  background-color: #242424;
+  color-scheme: dark;
+  color: #f5f7fa;
+  background:
+    radial-gradient(circle at top, rgba(255, 196, 61, 0.14), transparent 30%),
+    linear-gradient(180deg, #17181c 0%, #0f1013 100%);
 
   font-synthesis: none;
   text-rendering: optimizeLegibility;
@@ -13,22 +14,34 @@
   -moz-osx-font-smoothing: grayscale;
 }
 
+* {
+  box-sizing: border-box;
+}
+
+html {
+  background: #0f1013;
+}
+
 a {
   font-weight: 500;
-  color: #646cff;
+  color: #f6d365;
   text-decoration: inherit;
 }
+
 a:hover {
-  color: #535bf2;
+  color: #ffe29a;
 }
 
 body {
   margin: 0;
-  display: flex;
-  flex-direction: column;
-  justify-content: flex-start;
-  align-items: center;
   min-width: 320px;
+  min-height: 100vh;
+  background: transparent;
+  color: #f5f7fa;
+}
+
+#root {
+  width: 100%;
   min-height: 100vh;
 }
 
@@ -44,27 +57,18 @@ button {
   font-size: 1em;
   font-weight: 500;
   font-family: inherit;
-  background-color: #1a1a1a;
+  background-color: #1d2026;
+  color: #f5f7fa;
   cursor: pointer;
-  transition: border-color 0.25s;
+  transition: border-color 0.25s, background-color 0.25s;
 }
+
 button:hover {
-  border-color: #646cff;
+  border-color: #f6d365;
+  background-color: #252932;
 }
+
 button:focus,
 button:focus-visible {
   outline: 4px auto -webkit-focus-ring-color;
-}
-
-@media (prefers-color-scheme: light) {
-  :root {
-    color: #213547;
-    background-color: #ffffff;
-  }
-  a:hover {
-    color: #747bff;
-  }
-  button {
-    background-color: #f9f9f9;
-  }
 }

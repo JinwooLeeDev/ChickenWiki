@@ -4,6 +4,7 @@ import BrandsPage from "./components/BrandsPage";
 import LoginPage from "./components/LoginPage";
 import BrandDetailPage from "./components/BrandDetailPage";
 import MenuReviewPage from "./components/MenuReviewPage";
+import MyPage from "./components/MyPage";
 
 export default function App() {
   return (
@@ -13,6 +14,7 @@ export default function App() {
       <Route path="/brand/:id" element={<BrandDetailPage />} />
       <Route path="/menu/:id" element={<MenuReviewPage />} />
       <Route path="/login" element={<LoginPage />} />
+      <Route path="/mypage" element={<MyPage />} />
     </Routes>
   );
 }
