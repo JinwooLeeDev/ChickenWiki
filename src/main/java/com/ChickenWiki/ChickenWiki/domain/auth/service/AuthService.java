@@ -46,7 +46,7 @@ public class AuthService {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "이미 사용 중인 아이디입니다.");
         }
 
-        User user = userRepository.save(new User(username, passwordEncoder.encode(password), ROLE_USER));
+        User user = userRepository.save(new User(username, username, passwordEncoder.encode(password), ROLE_USER));
         return createAuthResponse(user);
     }
 
