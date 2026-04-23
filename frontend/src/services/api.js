@@ -64,19 +64,130 @@ export async function getMenuReviews(menuId) {
   }
 }
 
+function getStoredUser() {
+  try {
+    const raw = localStorage.getItem('chickenwikiUser');
+    return raw ? JSON.parse(raw) : null;
+  } catch (e) {
+    console.error('getStoredUser error', e);
+    return null;
+  }
+}
+
+async function parseError(res, fallbackMessage) {
+  try {
+    const data = await res.json();
+    if (data?.message) return data.message;
+  } catch (e) {
+    console.error('parseError error', e);
+  }
+
+  return fallbackMessage;
+}
+
+function getAuthHeaders() {
+  const currentUser = getStoredUser();
+
+  return {
+    'Content-Type': 'application/json',
+    ...(currentUser?.token ? { Authorization: `Bearer ${currentUser.token}` } : {}),
+  };
+}
+
 export async function createMenuReview(menuId, payload) {
   try {
     const res = await fetch(`/api/menus/${menuId}/reviews`, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
+      headers: getAuthHeaders(),
       body: JSON.stringify(payload),
     });
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+
+    if (!res.ok) {
+      throw new Error(await parseError(res, '리뷰 등록에 실패했습니다.'));
+    }
+
     return await res.json();
   } catch (e) {
     console.error('createMenuReview error', e);
     throw e;
   }
+}
+
+export async function updateMenuReview(menuId, reviewId, payload) {
+  try {
+    const res = await fetch(`/api/menus/${menuId}/reviews/${reviewId}`, {
+      method: 'PUT',
+      headers: getAuthHeaders(),
+      body: JSON.stringify(payload),
+    });
+
+    if (!res.ok) {
+      throw new Error(await parseError(res, '리뷰 수정에 실패했습니다.'));
+    }
+
+    return await res.json();
+  } catch (e) {
+    console.error('updateMenuReview error', e);
+    throw e;
+  }
+}
+
+export async function deleteMenuReview(menuId, reviewId) {
+  try {
+    const res = await fetch(`/api/menus/${menuId}/reviews/${reviewId}`, {
+      method: 'DELETE',
+      headers: getAuthHeaders(),
+    });
+
+    if (!res.ok) {
+      throw new Error(await parseError(res, '리뷰 삭제에 실패했습니다.'));
+    }
+  } catch (e) {
+    console.error('deleteMenuReview error', e);
+    throw e;
+  }
+}
+
+export async function signup(payload) {
+  const res = await fetch('/api/users/signup', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(payload),
+  });
+
+  if (!res.ok) {
+    throw new Error(await parseError(res, '회원가입에 실패했습니다.'));
+  }
+
+  return await res.json();
+}
+
+export async function login(payload) {
+  const res = await fetch('/api/users/login', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(payload),
+  });
+
+  if (!res.ok) {
+    throw new Error(await parseError(res, '로그인에 실패했습니다.'));
+  }
+
+  return await res.json();
+}
+
+export async function getMyPage() {
+  const res = await fetch('/api/users/me', {
+    headers: getAuthHeaders(),
+  });
+
+  if (!res.ok) {
+    throw new Error(await parseError(res, '마이페이지 정보를 불러오지 못했습니다.'));
+  }
+
+  return await res.json();
 }

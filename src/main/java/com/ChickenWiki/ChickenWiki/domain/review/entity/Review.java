@@ -35,4 +35,9 @@ public class Review {
         this.content = content;
         this.createdAt = LocalDateTime.now();
     }
+
+    public void update(Integer rating, String content) {
+        this.rating = rating;
+        this.content = content;
+    }
 }

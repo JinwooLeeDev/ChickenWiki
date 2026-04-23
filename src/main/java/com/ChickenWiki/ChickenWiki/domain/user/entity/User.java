@@ -16,14 +16,23 @@ public class User {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    @Column(nullable = false, unique = true)
+    private String username;
+
+    @Column(nullable = false)
     private String nickname;
+
+    @Column(nullable = false)
     private String password;
+
+    @Column(nullable = false)
     private String role;
 
     @Column(name = "created_at")
     private LocalDateTime createdAt;
 
-    public User(String nickname, String password, String role) {
+    public User(String username, String nickname, String password, String role) {
+        this.username = username;
         this.nickname = nickname;
         this.password = password;
         this.role = role;

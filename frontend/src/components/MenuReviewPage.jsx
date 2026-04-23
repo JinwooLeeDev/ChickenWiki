@@ -1,7 +1,13 @@
 import React, { useEffect, useState } from "react";
-import { useParams } from "react-router-dom";
+import { Link, useParams } from "react-router-dom";
 import Header from "./Header";
-import { createMenuReview, getMenu, getMenuReviews } from "../services/api";
+import {
+  createMenuReview,
+  deleteMenuReview,
+  getMenu,
+  getMenuReviews,
+  updateMenuReview,
+} from "../services/api";
 
 function formatDate(value) {
   if (!value) return "";
@@ -26,7 +32,38 @@ function formatPrice(value) {
   return `${value.toLocaleString()}\uC6D0`;
 }
 
-function ReviewItem({ review }) {
+function ReviewItem({
+  review,
+  currentUser,
+  editingReviewId,
+  actionLoading,
+  onStartEdit,
+  onCancelEdit,
+  onSaveEdit,
+  onDelete,
+}) {
+  const isOwner = currentUser?.nickname === review.author;
+  const isEditing = editingReviewId === review.id;
+  const [content, setContent] = useState(review.content);
+  const [rating, setRating] = useState(review.rating);
+
+  useEffect(() => {
+    setContent(review.content);
+    setRating(review.rating);
+  }, [review]);
+
+  const handleSave = async () => {
+    if (!content.trim()) {
+      alert("리뷰 내용을 입력해주세요.");
+      return;
+    }
+
+    await onSaveEdit(review.id, {
+      content: content.trim(),
+      rating,
+    });
+  };
+
   return (
     <div
       style={{
@@ -48,65 +85,218 @@ function ReviewItem({ review }) {
       >
         <div style={{ fontWeight: 600 }}>{review.author}</div>
         <div style={{ color: "#ffd700" }}>
-          {"\u2605".repeat(review.rating)}
-          {"\u2606".repeat(5 - review.rating)}
+          {"\u2605".repeat(isEditing ? rating : review.rating)}
+          {"\u2606".repeat(5 - (isEditing ? rating : review.rating))}
         </div>
       </div>
-      <div style={{ color: "#ccc", marginBottom: 12 }}>{review.content}</div>
+
+      {isEditing ? (
+        <div style={{ display: "grid", gap: 12, marginBottom: 12 }}>
+          <textarea
+            value={content}
+            onChange={(e) => setContent(e.target.value)}
+            rows={4}
+            style={{
+              width: "100%",
+              padding: "12px 14px",
+              borderRadius: 12,
+              border: "1px solid #2c3138",
+              background: "#101318",
+              color: "white",
+              resize: "vertical",
+            }}
+          />
+          <select
+            value={rating}
+            onChange={(e) => setRating(parseInt(e.target.value, 10))}
+            style={{
+              width: 120,
+              padding: "10px 12px",
+              borderRadius: 10,
+              border: "1px solid #333942",
+              background: "#171a20",
+              color: "white",
+            }}
+          >
+            {[1, 2, 3, 4, 5].map((n) => (
+              <option key={n} value={n}>
+                {`${n}\uC810`}
+              </option>
+            ))}
+          </select>
+        </div>
+      ) : (
+        <div style={{ color: "#ccc", marginBottom: 12 }}>{review.content}</div>
+      )}
+
       <div style={{ fontSize: 12, color: "#777" }}>{formatDate(review.createdAt)}</div>
+
+      {isOwner ? (
+        <div style={{ display: "flex", gap: 8, marginTop: 12, justifyContent: "flex-end" }}>
+          {isEditing ? (
+            <>
+              <button
+                type="button"
+                onClick={handleSave}
+                disabled={actionLoading}
+                style={{
+                  padding: "8px 12px",
+                  borderRadius: 10,
+                  border: "none",
+                  background: "#f6d365",
+                  color: "#17191d",
+                  fontWeight: 700,
+                  opacity: actionLoading ? 0.7 : 1,
+                }}
+              >
+                {actionLoading ? "저장 중..." : "저장"}
+              </button>
+              <button
+                type="button"
+                onClick={onCancelEdit}
+                disabled={actionLoading}
+                style={{
+                  padding: "8px 12px",
+                  borderRadius: 10,
+                  border: "1px solid #39414d",
+                  background: "#181b21",
+                  color: "white",
+                }}
+              >
+                취소
+              </button>
+            </>
+          ) : (
+            <>
+              <button
+                type="button"
+                onClick={() => onStartEdit(review.id)}
+                disabled={actionLoading}
+                style={{
+                  padding: "8px 12px",
+                  borderRadius: 10,
+                  border: "1px solid #39414d",
+                  background: "#181b21",
+                  color: "white",
+                }}
+              >
+                수정
+              </button>
+              <button
+                type="button"
+                onClick={() => onDelete(review.id)}
+                disabled={actionLoading}
+                style={{
+                  padding: "8px 12px",
+                  borderRadius: 10,
+                  border: "1px solid #5a3038",
+                  background: "#2b171b",
+                  color: "#ffccd3",
+                }}
+              >
+                삭제
+              </button>
+            </>
+          )}
+        </div>
+      ) : null}
     </div>
   );
 }
 
-function ReviewForm({ onSubmit, submitting }) {
-  const [author, setAuthor] = useState("");
+function ReviewForm({ currentUser, onSubmit, submitting }) {
   const [content, setContent] = useState("");
   const [rating, setRating] = useState(5);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (!currentUser) return;
     if (!content.trim()) return;
 
     const success = await onSubmit({
-      author: author.trim(),
       content: content.trim(),
       rating,
     });
 
     if (success) {
-      setAuthor("");
       setContent("");
       setRating(5);
     }
   };
 
+  if (!currentUser) {
+    return (
+      <div
+        style={{
+          marginBottom: 24,
+          padding: 24,
+          borderRadius: 18,
+          background: "linear-gradient(180deg, #1a1c21 0%, #14161b 100%)",
+          border: "1px solid #2d3138",
+          color: "white",
+        }}
+      >
+        <h3 style={{ marginTop: 0, marginBottom: 8 }}>{"\uB9AC\uBDF0 \uC791\uC131"}</h3>
+        <div style={{ color: "#9aa6b2", lineHeight: 1.6, marginBottom: 16 }}>
+          {"\uB9AC\uBDF0\uB97C \uB0A8\uAE30\uB824\uBA74 \uBA3C\uC800 \uB85C\uADF8\uC778\uD574\uC8FC\uC138\uC694."}
+        </div>
+        <Link
+          to="/login"
+          style={{
+            display: "inline-flex",
+            alignItems: "center",
+            justifyContent: "center",
+            padding: "10px 16px",
+            borderRadius: 12,
+            background: "#f6d365",
+            color: "#17191d",
+            textDecoration: "none",
+            fontWeight: 700,
+          }}
+        >
+          {"\uB85C\uADF8\uC778\uD558\uB7EC \uAC00\uAE30"}
+        </Link>
+      </div>
+    );
+  }
+
   return (
     <form
       onSubmit={handleSubmit}
       style={{
-        background: "#1a1a1a",
-        padding: 20,
-        borderRadius: 8,
+        background: "linear-gradient(180deg, #1a1c21 0%, #14161b 100%)",
+        padding: 24,
+        borderRadius: 18,
         marginBottom: 24,
         display: "flex",
         flexDirection: "column",
         gap: 16,
+        border: "1px solid #2d3138",
+        boxShadow: "0 18px 36px rgba(0, 0, 0, 0.18)",
       }}
     >
       <h3 style={{ color: "white", margin: 0 }}>{"\uB9AC\uBDF0 \uC791\uC131"}</h3>
-      <input
-        placeholder={"\uB2C9\uB124\uC784\uC744 \uC785\uB825\uD558\uC138\uC694"}
-        value={author}
-        onChange={(e) => setAuthor(e.target.value)}
+      <div
         style={{
-          padding: "12px",
-          borderRadius: 6,
-          border: "1px solid #333",
-          background: "#0f0f0f",
-          color: "white",
-          fontSize: 14,
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+          gap: 12,
+          padding: "14px 16px",
+          borderRadius: 14,
+          background: "#101318",
+          border: "1px solid #2c3138",
+          color: "#dbe3ec",
         }}
-      />
+      >
+        <div>
+          <div style={{ fontSize: 12, color: "#8f9aa7", marginBottom: 4 }}>{"\uC791\uC131\uC790"}</div>
+          <div style={{ fontWeight: 700 }}>{currentUser.nickname}</div>
+        </div>
+        <div style={{ fontSize: 12, color: "#8f9aa7" }}>
+          {"\uB2C9\uB124\uC784\uC740 \uACC4\uC815 \uC815\uBCF4\uC5D0\uC11C \uC790\uB3D9 \uC801\uC6A9\uB429\uB2C8\uB2E4."}
+        </div>
+      </div>
       <div style={{ display: "flex", gap: 16, alignItems: "flex-start", flexWrap: "wrap" }}>
         <textarea
           placeholder={"\uBA54\uB274\uC5D0 \uB300\uD55C \uC194\uC9C1\uD55C \uD6C4\uAE30\uB97C \uB0A8\uACA8\uC8FC\uC138\uC694"}
@@ -116,25 +306,40 @@ function ReviewForm({ onSubmit, submitting }) {
           style={{
             flex: 1,
             minWidth: 260,
-            padding: "12px",
-            borderRadius: 6,
-            border: "1px solid #333",
-            background: "#0f0f0f",
+            minHeight: 136,
+            padding: "14px 16px",
+            borderRadius: 14,
+            border: "1px solid #2c3138",
+            background: "#101318",
             color: "white",
             resize: "vertical",
             fontSize: 14,
+            lineHeight: 1.6,
           }}
         />
-        <div style={{ display: "flex", flexDirection: "column", gap: 8, minWidth: 120 }}>
-          <label style={{ color: "white", fontSize: 14 }}>{"\uD3C9\uC810"}</label>
+        <div
+          style={{
+            display: "flex",
+            flexDirection: "column",
+            gap: 10,
+            minWidth: 160,
+            padding: "14px 16px",
+            borderRadius: 14,
+            background: "#101318",
+            border: "1px solid #2c3138",
+          }}
+        >
+          <label style={{ color: "white", fontSize: 14, fontWeight: 700 }}>
+            {"\uD3C9\uC810"}
+          </label>
           <select
             value={rating}
             onChange={(e) => setRating(parseInt(e.target.value, 10))}
             style={{
-              padding: "8px 12px",
-              borderRadius: 6,
-              border: "1px solid #333",
-              background: "#0f0f0f",
+              padding: "10px 12px",
+              borderRadius: 10,
+              border: "1px solid #333942",
+              background: "#171a20",
               color: "white",
               fontSize: 14,
             }}
@@ -152,13 +357,13 @@ function ReviewForm({ onSubmit, submitting }) {
         disabled={submitting}
         style={{
           alignSelf: "flex-end",
-          padding: "10px 20px",
-          background: "#ffd700",
-          color: "black",
+          padding: "12px 22px",
+          background: "#f6d365",
+          color: "#17191d",
           border: "none",
-          borderRadius: 6,
+          borderRadius: 12,
           cursor: submitting ? "not-allowed" : "pointer",
-          fontWeight: 600,
+          fontWeight: 700,
           opacity: submitting ? 0.7 : 1,
         }}
       >
@@ -175,8 +380,21 @@ export default function MenuReviewPage() {
   const [reviews, setReviews] = useState([]);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
+  const [reviewActionLoading, setReviewActionLoading] = useState(false);
+  const [editingReviewId, setEditingReviewId] = useState(null);
   const [error, setError] = useState("");
   const [submitMessage, setSubmitMessage] = useState("");
+  const [currentUser, setCurrentUser] = useState(null);
+
+  useEffect(() => {
+    try {
+      const storedUser = localStorage.getItem("chickenwikiUser");
+      setCurrentUser(storedUser ? JSON.parse(storedUser) : null);
+    } catch (e) {
+      console.error("Failed to read current user", e);
+      setCurrentUser(null);
+    }
+  }, []);
 
   useEffect(() => {
     let mounted = true;
@@ -187,10 +405,7 @@ export default function MenuReviewPage() {
       setSubmitMessage("");
 
       try {
-        const [menuData, reviewData] = await Promise.all([
-          getMenu(menuId),
-          getMenuReviews(menuId),
-        ]);
+        const [menuData, reviewData] = await Promise.all([getMenu(menuId), getMenuReviews(menuId)]);
 
         if (!mounted) return;
 
@@ -235,17 +450,49 @@ export default function MenuReviewPage() {
       setSubmitMessage("");
       const createdReview = await createMenuReview(menuId, newReview);
       setReviews((prev) => [createdReview, ...prev]);
-      setSubmitMessage(
-        "\uB9AC\uBDF0\uAC00 \uB4F1\uB85D\uB418\uC5C8\uC2B5\uB2C8\uB2E4. \uC0C8\uB85C\uACE0\uCE68\uD558\uC9C0 \uC54A\uC544\uB3C4 \uBC14\uB85C \uBC18\uC601\uB3FC\uC694."
-      );
+      setSubmitMessage("\uB9AC\uBDF0\uAC00 \uB4F1\uB85D\uB418\uC5C8\uC2B5\uB2C8\uB2E4.");
       return true;
     } catch (e) {
-      alert(
-        "\uB9AC\uBDF0 \uB4F1\uB85D\uC5D0 \uC2E4\uD328\uD588\uC2B5\uB2C8\uB2E4. \uC7A0\uC2DC \uD6C4 \uB2E4\uC2DC \uC2DC\uB3C4\uD574\uC8FC\uC138\uC694."
-      );
+      alert(e.message || "\uB9AC\uBDF0 \uB4F1\uB85D\uC5D0 \uC2E4\uD328\uD588\uC2B5\uB2C8\uB2E4.");
       return false;
     } finally {
       setSubmitting(false);
+    }
+  };
+
+  const handleSaveEdit = async (reviewId, payload) => {
+    try {
+      setReviewActionLoading(true);
+      setSubmitMessage("");
+      const updatedReview = await updateMenuReview(menuId, reviewId, payload);
+      setReviews((prev) => prev.map((review) => (review.id === reviewId ? updatedReview : review)));
+      setEditingReviewId(null);
+      setSubmitMessage("리뷰가 수정되었습니다.");
+    } catch (e) {
+      alert(e.message || "리뷰 수정에 실패했습니다.");
+    } finally {
+      setReviewActionLoading(false);
+    }
+  };
+
+  const handleDelete = async (reviewId) => {
+    if (!window.confirm("리뷰를 삭제하시겠습니까?")) {
+      return;
+    }
+
+    try {
+      setReviewActionLoading(true);
+      setSubmitMessage("");
+      await deleteMenuReview(menuId, reviewId);
+      setReviews((prev) => prev.filter((review) => review.id !== reviewId));
+      if (editingReviewId === reviewId) {
+        setEditingReviewId(null);
+      }
+      setSubmitMessage("리뷰가 삭제되었습니다.");
+    } catch (e) {
+      alert(e.message || "리뷰 삭제에 실패했습니다.");
+    } finally {
+      setReviewActionLoading(false);
     }
   };
 
@@ -309,7 +556,7 @@ export default function MenuReviewPage() {
 
       <section style={{ marginTop: 36 }}>
         <h2 style={{ marginBottom: 16 }}>{`\uB9AC\uBDF0 ${reviews.length}\uAC1C`}</h2>
-        <ReviewForm onSubmit={handleReviewSubmit} submitting={submitting} />
+        <ReviewForm currentUser={currentUser} onSubmit={handleReviewSubmit} submitting={submitting} />
         {submitMessage ? (
           <div
             style={{
@@ -330,7 +577,19 @@ export default function MenuReviewPage() {
               {"\uC544\uC9C1 \uB4F1\uB85D\uB41C \uB9AC\uBDF0\uAC00 \uC5C6\uC2B5\uB2C8\uB2E4. \uCCAB \uB9AC\uBDF0\uB97C \uB0A8\uACA8\uBCF4\uC138\uC694."}
             </div>
           ) : (
-            reviews.map((review) => <ReviewItem key={review.id} review={review} />)
+            reviews.map((review) => (
+              <ReviewItem
+                key={review.id}
+                review={review}
+                currentUser={currentUser}
+                editingReviewId={editingReviewId}
+                actionLoading={reviewActionLoading}
+                onStartEdit={setEditingReviewId}
+                onCancelEdit={() => setEditingReviewId(null)}
+                onSaveEdit={handleSaveEdit}
+                onDelete={handleDelete}
+              />
+            ))
           )}
         </div>
       </section>
