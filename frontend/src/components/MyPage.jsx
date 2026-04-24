@@ -3,6 +3,18 @@ import { Link, Navigate } from "react-router-dom";
 import Header from "./Header";
 import { getMyPage } from "../services/api";
 
+const pageStyles = {
+  pageBackdrop: {
+    minHeight: "100vh",
+    background: "linear-gradient(180deg, #14171c 0%, #0d0f13 100%)",
+  },
+  contentWrap: {
+    padding: 28,
+    maxWidth: 1100,
+    margin: "0 auto",
+  },
+};
+
 function readStoredUser() {
   try {
     const storedUser = localStorage.getItem("chickenwikiUser");
@@ -91,17 +103,18 @@ export default function MyPage() {
   }
 
   return (
-    <div style={{ padding: 28, maxWidth: 1100, margin: "0 auto" }}>
-      <Header />
+    <div style={pageStyles.pageBackdrop}>
+      <div style={pageStyles.contentWrap}>
+        <Header />
 
-      <section
-        style={{
-          marginTop: 24,
-          display: "grid",
-          gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))",
-          gap: 20,
-        }}
-      >
+        <section
+          style={{
+            marginTop: 24,
+            display: "grid",
+            gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))",
+            gap: 20,
+          }}
+        >
         <div
           style={{
             padding: 24,
@@ -142,9 +155,8 @@ export default function MyPage() {
           style={{
             padding: 24,
             borderRadius: 20,
-            background:
-              "radial-gradient(circle at top right, rgba(246, 211, 101, 0.14), transparent 35%), linear-gradient(180deg, #1c1d16 0%, #12130f 100%)",
-            border: "1px solid #34301f",
+            background: "linear-gradient(180deg, #1d2026 0%, #13161b 100%)",
+            border: "1px solid #2b313a",
           }}
         >
           <div style={{ color: "#fff2c4", fontWeight: 700, marginBottom: 12 }}>리뷰 활동 요약</div>
@@ -161,17 +173,17 @@ export default function MyPage() {
             </div>
           ) : null}
         </div>
-      </section>
+        </section>
 
-      <section
-        style={{
-          marginTop: 28,
-          padding: 24,
-          borderRadius: 20,
-          background: "#171a20",
-          border: "1px solid #2a2f38",
-        }}
-      >
+        <section
+          style={{
+            marginTop: 28,
+            padding: 24,
+            borderRadius: 20,
+            background: "#171a20",
+            border: "1px solid #2a2f38",
+          }}
+        >
         <div
           style={{
             display: "flex",
@@ -283,7 +295,8 @@ export default function MyPage() {
             ))}
           </div>
         )}
-      </section>
+        </section>
+      </div>
     </div>
   );
 }
