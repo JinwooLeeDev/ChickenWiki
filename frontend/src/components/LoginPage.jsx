@@ -2,6 +2,13 @@ import React, { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { login, signup } from "../services/api";
 
+const pageStyles = {
+  pageBackdrop: {
+    minHeight: "100vh",
+    background: "linear-gradient(180deg, #14171c 0%, #0d0f13 100%)",
+  },
+};
+
 export default function LoginPage() {
   const navigate = useNavigate();
   const [mode, setMode] = useState("login");
@@ -68,6 +75,7 @@ export default function LoginPage() {
   return (
     <div
       style={{
+        ...pageStyles.pageBackdrop,
         minHeight: "100vh",
         display: "flex",
         alignItems: "center",
@@ -81,9 +89,8 @@ export default function LoginPage() {
           maxWidth: 460,
           padding: 28,
           borderRadius: 24,
-          background:
-            "radial-gradient(circle at top, rgba(246, 211, 101, 0.16), transparent 35%), linear-gradient(180deg, #1b1d22 0%, #111318 100%)",
-          border: "1px solid #2b2f36",
+          background: "linear-gradient(180deg, #1a1d23 0%, #13161b 100%)",
+          border: "1px solid #2b3139",
           boxShadow: "0 24px 60px rgba(0, 0, 0, 0.3)",
         }}
       >

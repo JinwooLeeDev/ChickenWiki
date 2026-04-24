@@ -9,6 +9,18 @@ import {
   updateMenuReview,
 } from "../services/api";
 
+const pageStyles = {
+  pageBackdrop: {
+    minHeight: "100vh",
+    background: "linear-gradient(180deg, #14171c 0%, #0d0f13 100%)",
+  },
+  contentWrap: {
+    padding: 28,
+    maxWidth: 1100,
+    margin: "0 auto",
+  },
+};
+
 function formatDate(value) {
   if (!value) return "";
 
@@ -498,27 +510,32 @@ export default function MenuReviewPage() {
 
   if (loading) {
     return (
-      <div style={{ padding: 28, maxWidth: 1100, margin: "0 auto", color: "white" }}>
-        <Header />
-        <p>{"\uBA54\uB274 \uC815\uBCF4\uB97C \uBD88\uB7EC\uC624\uB294 \uC911\uC785\uB2C8\uB2E4..."}</p>
+      <div style={pageStyles.pageBackdrop}>
+        <div style={{ ...pageStyles.contentWrap, color: "white" }}>
+          <Header />
+          <p>{"\uBA54\uB274 \uC815\uBCF4\uB97C \uBD88\uB7EC\uC624\uB294 \uC911\uC785\uB2C8\uB2E4..."}</p>
+        </div>
       </div>
     );
   }
 
   if (!menu || error === "menu-not-found") {
     return (
-      <div style={{ padding: 28, maxWidth: 1100, margin: "0 auto", color: "white" }}>
-        <Header />
-        <p>{"\uBA54\uB274\uB97C \uCC3E\uC744 \uC218 \uC5C6\uC2B5\uB2C8\uB2E4."}</p>
+      <div style={pageStyles.pageBackdrop}>
+        <div style={{ ...pageStyles.contentWrap, color: "white" }}>
+          <Header />
+          <p>{"\uBA54\uB274\uB97C \uCC3E\uC744 \uC218 \uC5C6\uC2B5\uB2C8\uB2E4."}</p>
+        </div>
       </div>
     );
   }
 
   return (
-    <div style={{ padding: 28, maxWidth: 1100, margin: "0 auto" }}>
-      <Header />
+    <div style={pageStyles.pageBackdrop}>
+      <div style={pageStyles.contentWrap}>
+        <Header />
 
-      <section style={{ marginTop: 24 }}>
+        <section style={{ marginTop: 24 }}>
         <div
           style={{
             background: "#1a1a1a",
@@ -552,9 +569,9 @@ export default function MenuReviewPage() {
             </p>
           </div>
         </div>
-      </section>
+        </section>
 
-      <section style={{ marginTop: 36 }}>
+        <section style={{ marginTop: 36 }}>
         <h2 style={{ marginBottom: 16 }}>{`\uB9AC\uBDF0 ${reviews.length}\uAC1C`}</h2>
         <ReviewForm currentUser={currentUser} onSubmit={handleReviewSubmit} submitting={submitting} />
         {submitMessage ? (
@@ -592,7 +609,8 @@ export default function MenuReviewPage() {
             ))
           )}
         </div>
-      </section>
+        </section>
+      </div>
     </div>
   );
 }
