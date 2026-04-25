@@ -41,7 +41,29 @@ function formatPrice(value) {
     return value || "-";
   }
 
-  return `${value.toLocaleString()}\uC6D0`;
+  return `${value.toLocaleString()}원`;
+}
+
+function readStoredUser() {
+  try {
+    const storedUser = localStorage.getItem("chickenwikiUser");
+    return storedUser ? JSON.parse(storedUser) : null;
+  } catch (e) {
+    console.error("Failed to read current user", e);
+    return null;
+  }
+}
+
+function isAuthErrorMessage(message) {
+  if (!message) return false;
+
+  const normalized = message.toLowerCase();
+  return (
+    normalized.includes("authorization") ||
+    normalized.includes("unauthorized") ||
+    normalized.includes("forbidden") ||
+    normalized.includes("token")
+  );
 }
 
 function ReviewItem({
@@ -66,7 +88,7 @@ function ReviewItem({
 
   const handleSave = async () => {
     if (!content.trim()) {
-      alert("리뷰 내용을 입력해주세요.");
+      alert("리뷰 내용을 입력해 주세요.");
       return;
     }
 
@@ -97,8 +119,8 @@ function ReviewItem({
       >
         <div style={{ fontWeight: 600 }}>{review.author}</div>
         <div style={{ color: "#ffd700" }}>
-          {"\u2605".repeat(isEditing ? rating : review.rating)}
-          {"\u2606".repeat(5 - (isEditing ? rating : review.rating))}
+          {"★".repeat(isEditing ? rating : review.rating)}
+          {"☆".repeat(5 - (isEditing ? rating : review.rating))}
         </div>
       </div>
 
@@ -132,7 +154,7 @@ function ReviewItem({
           >
             {[1, 2, 3, 4, 5].map((n) => (
               <option key={n} value={n}>
-                {`${n}\uC810`}
+                {`${n}점`}
               </option>
             ))}
           </select>
@@ -248,9 +270,9 @@ function ReviewForm({ currentUser, onSubmit, submitting }) {
           color: "white",
         }}
       >
-        <h3 style={{ marginTop: 0, marginBottom: 8 }}>{"\uB9AC\uBDF0 \uC791\uC131"}</h3>
+        <h3 style={{ marginTop: 0, marginBottom: 8 }}>리뷰 작성</h3>
         <div style={{ color: "#9aa6b2", lineHeight: 1.6, marginBottom: 16 }}>
-          {"\uB9AC\uBDF0\uB97C \uB0A8\uAE30\uB824\uBA74 \uBA3C\uC800 \uB85C\uADF8\uC778\uD574\uC8FC\uC138\uC694."}
+          리뷰를 남기려면 먼저 로그인해 주세요.
         </div>
         <Link
           to="/login"
@@ -266,7 +288,7 @@ function ReviewForm({ currentUser, onSubmit, submitting }) {
             fontWeight: 700,
           }}
         >
-          {"\uB85C\uADF8\uC778\uD558\uB7EC \uAC00\uAE30"}
+          로그인하러 가기
         </Link>
       </div>
     );
@@ -287,7 +309,7 @@ function ReviewForm({ currentUser, onSubmit, submitting }) {
         boxShadow: "0 18px 36px rgba(0, 0, 0, 0.18)",
       }}
     >
-      <h3 style={{ color: "white", margin: 0 }}>{"\uB9AC\uBDF0 \uC791\uC131"}</h3>
+      <h3 style={{ color: "white", margin: 0 }}>리뷰 작성</h3>
       <div
         style={{
           display: "flex",
@@ -302,16 +324,16 @@ function ReviewForm({ currentUser, onSubmit, submitting }) {
         }}
       >
         <div>
-          <div style={{ fontSize: 12, color: "#8f9aa7", marginBottom: 4 }}>{"\uC791\uC131\uC790"}</div>
+          <div style={{ fontSize: 12, color: "#8f9aa7", marginBottom: 4 }}>작성자</div>
           <div style={{ fontWeight: 700 }}>{currentUser.nickname}</div>
         </div>
         <div style={{ fontSize: 12, color: "#8f9aa7" }}>
-          {"\uB2C9\uB124\uC784\uC740 \uACC4\uC815 \uC815\uBCF4\uC5D0\uC11C \uC790\uB3D9 \uC801\uC6A9\uB429\uB2C8\uB2E4."}
+          닉네임은 계정 정보에서 자동 적용됩니다.
         </div>
       </div>
       <div style={{ display: "flex", gap: 16, alignItems: "flex-start", flexWrap: "wrap" }}>
         <textarea
-          placeholder={"\uBA54\uB274\uC5D0 \uB300\uD55C \uC194\uC9C1\uD55C \uD6C4\uAE30\uB97C \uB0A8\uACA8\uC8FC\uC138\uC694"}
+          placeholder="메뉴에 대한 솔직한 후기를 남겨주세요"
           value={content}
           onChange={(e) => setContent(e.target.value)}
           rows={4}
@@ -341,9 +363,7 @@ function ReviewForm({ currentUser, onSubmit, submitting }) {
             border: "1px solid #2c3138",
           }}
         >
-          <label style={{ color: "white", fontSize: 14, fontWeight: 700 }}>
-            {"\uD3C9\uC810"}
-          </label>
+          <label style={{ color: "white", fontSize: 14, fontWeight: 700 }}>평점</label>
           <select
             value={rating}
             onChange={(e) => setRating(parseInt(e.target.value, 10))}
@@ -358,7 +378,7 @@ function ReviewForm({ currentUser, onSubmit, submitting }) {
           >
             {[1, 2, 3, 4, 5].map((n) => (
               <option key={n} value={n}>
-                {`${n}\uC810`}
+                {`${n}점`}
               </option>
             ))}
           </select>
@@ -379,7 +399,7 @@ function ReviewForm({ currentUser, onSubmit, submitting }) {
           opacity: submitting ? 0.7 : 1,
         }}
       >
-        {submitting ? "\uB4F1\uB85D \uC911..." : "\uB9AC\uBDF0 \uB4F1\uB85D"}
+        {submitting ? "등록 중..." : "리뷰 등록"}
       </button>
     </form>
   );
@@ -399,13 +419,23 @@ export default function MenuReviewPage() {
   const [currentUser, setCurrentUser] = useState(null);
 
   useEffect(() => {
-    try {
-      const storedUser = localStorage.getItem("chickenwikiUser");
-      setCurrentUser(storedUser ? JSON.parse(storedUser) : null);
-    } catch (e) {
-      console.error("Failed to read current user", e);
-      setCurrentUser(null);
-    }
+    const syncUser = () => {
+      const nextUser = readStoredUser();
+      setCurrentUser(nextUser);
+
+      if (!nextUser) {
+        setEditingReviewId(null);
+      }
+    };
+
+    syncUser();
+    window.addEventListener("storage", syncUser);
+    window.addEventListener("chickenwiki-auth-changed", syncUser);
+
+    return () => {
+      window.removeEventListener("storage", syncUser);
+      window.removeEventListener("chickenwiki-auth-changed", syncUser);
+    };
   }, []);
 
   useEffect(() => {
@@ -457,15 +487,24 @@ export default function MenuReviewPage() {
   }, [menuId]);
 
   const handleReviewSubmit = async (newReview) => {
+    if (!currentUser?.token) {
+      alert("리뷰 작성은 로그인 후 이용할 수 있어요.");
+      return false;
+    }
+
     try {
       setSubmitting(true);
       setSubmitMessage("");
       const createdReview = await createMenuReview(menuId, newReview);
       setReviews((prev) => [createdReview, ...prev]);
-      setSubmitMessage("\uB9AC\uBDF0\uAC00 \uB4F1\uB85D\uB418\uC5C8\uC2B5\uB2C8\uB2E4.");
+      setSubmitMessage("리뷰가 등록되었습니다.");
       return true;
     } catch (e) {
-      alert(e.message || "\uB9AC\uBDF0 \uB4F1\uB85D\uC5D0 \uC2E4\uD328\uD588\uC2B5\uB2C8\uB2E4.");
+      alert(
+        isAuthErrorMessage(e.message)
+          ? "로그인한 사용자만 리뷰를 작성할 수 있어요."
+          : e.message || "리뷰 등록에 실패했습니다."
+      );
       return false;
     } finally {
       setSubmitting(false);
@@ -473,6 +512,12 @@ export default function MenuReviewPage() {
   };
 
   const handleSaveEdit = async (reviewId, payload) => {
+    if (!currentUser?.token) {
+      setEditingReviewId(null);
+      alert("리뷰 수정은 로그인 상태에서만 가능해요.");
+      return;
+    }
+
     try {
       setReviewActionLoading(true);
       setSubmitMessage("");
@@ -481,6 +526,12 @@ export default function MenuReviewPage() {
       setEditingReviewId(null);
       setSubmitMessage("리뷰가 수정되었습니다.");
     } catch (e) {
+      if (isAuthErrorMessage(e.message)) {
+        setEditingReviewId(null);
+        alert("리뷰 수정은 로그인 상태에서만 가능해요.");
+        return;
+      }
+
       alert(e.message || "리뷰 수정에 실패했습니다.");
     } finally {
       setReviewActionLoading(false);
@@ -488,6 +539,11 @@ export default function MenuReviewPage() {
   };
 
   const handleDelete = async (reviewId) => {
+    if (!currentUser?.token) {
+      alert("리뷰 삭제는 로그인 상태에서만 가능해요.");
+      return;
+    }
+
     if (!window.confirm("리뷰를 삭제하시겠습니까?")) {
       return;
     }
@@ -502,6 +558,12 @@ export default function MenuReviewPage() {
       }
       setSubmitMessage("리뷰가 삭제되었습니다.");
     } catch (e) {
+      if (isAuthErrorMessage(e.message)) {
+        setEditingReviewId(null);
+        alert("리뷰 삭제는 로그인 상태에서만 가능해요.");
+        return;
+      }
+
       alert(e.message || "리뷰 삭제에 실패했습니다.");
     } finally {
       setReviewActionLoading(false);
@@ -513,7 +575,7 @@ export default function MenuReviewPage() {
       <div style={pageStyles.pageBackdrop}>
         <div style={{ ...pageStyles.contentWrap, color: "white" }}>
           <Header />
-          <p>{"\uBA54\uB274 \uC815\uBCF4\uB97C \uBD88\uB7EC\uC624\uB294 \uC911\uC785\uB2C8\uB2E4..."}</p>
+          <p>메뉴 정보를 불러오는 중입니다...</p>
         </div>
       </div>
     );
@@ -524,7 +586,7 @@ export default function MenuReviewPage() {
       <div style={pageStyles.pageBackdrop}>
         <div style={{ ...pageStyles.contentWrap, color: "white" }}>
           <Header />
-          <p>{"\uBA54\uB274\uB97C \uCC3E\uC744 \uC218 \uC5C6\uC2B5\uB2C8\uB2E4."}</p>
+          <p>메뉴를 찾을 수 없습니다.</p>
         </div>
       </div>
     );
@@ -536,79 +598,79 @@ export default function MenuReviewPage() {
         <Header />
 
         <section style={{ marginTop: 24 }}>
-        <div
-          style={{
-            background: "#1a1a1a",
-            padding: 24,
-            borderRadius: 8,
-            display: "flex",
-            gap: 24,
-            alignItems: "center",
-            flexWrap: "wrap",
-          }}
-        >
-          <img
-            src={menu.menuImageUrl}
-            alt={menu.menuName}
+          <div
             style={{
-              height: 180,
-              width: 180,
-              objectFit: "cover",
+              background: "#1a1a1a",
+              padding: 24,
               borderRadius: 8,
-              background: "#0f0f0f",
+              display: "flex",
+              gap: 24,
+              alignItems: "center",
+              flexWrap: "wrap",
             }}
-          />
-          <div style={{ color: "white", flex: 1, minWidth: 240 }}>
-            <div style={{ color: "#9aa6b2", marginBottom: 8 }}>{menu.brandName}</div>
-            <h1 style={{ fontSize: "2em", marginBottom: 8 }}>{menu.menuName}</h1>
-            <p style={{ color: "#9aa6b2", marginBottom: 8 }}>
-              {menu.description || "\uB4F1\uB85D\uB41C \uBA54\uB274 \uC124\uBA85\uC774 \uC5C6\uC2B5\uB2C8\uB2E4."}
-            </p>
-            <p style={{ fontSize: "1.2em", fontWeight: 600, color: "#ffd700" }}>
-              {formatPrice(menu.menuPrice)}
-            </p>
+          >
+            <img
+              src={menu.menuImageUrl}
+              alt={menu.menuName}
+              style={{
+                height: 180,
+                width: 180,
+                objectFit: "cover",
+                borderRadius: 8,
+                background: "#0f0f0f",
+              }}
+            />
+            <div style={{ color: "white", flex: 1, minWidth: 240 }}>
+              <div style={{ color: "#9aa6b2", marginBottom: 8 }}>{menu.brandName}</div>
+              <h1 style={{ fontSize: "2em", marginBottom: 8 }}>{menu.menuName}</h1>
+              <p style={{ color: "#9aa6b2", marginBottom: 8 }}>
+                {menu.description || "등록된 메뉴 설명이 없습니다."}
+              </p>
+              <p style={{ fontSize: "1.2em", fontWeight: 600, color: "#ffd700" }}>
+                {formatPrice(menu.menuPrice)}
+              </p>
+            </div>
           </div>
-        </div>
         </section>
 
         <section style={{ marginTop: 36 }}>
-        <h2 style={{ marginBottom: 16 }}>{`\uB9AC\uBDF0 ${reviews.length}\uAC1C`}</h2>
-        <ReviewForm currentUser={currentUser} onSubmit={handleReviewSubmit} submitting={submitting} />
-        {submitMessage ? (
-          <div
-            style={{
-              marginBottom: 16,
-              padding: "12px 16px",
-              borderRadius: 8,
-              background: "#24311f",
-              color: "#c9f5b0",
-              border: "1px solid #3f5c33",
-            }}
-          >
-            {submitMessage}
-          </div>
-        ) : null}
-        <div>
-          {reviews.length === 0 ? (
-            <div style={{ color: "#9aa6b2", textAlign: "center", padding: 24 }}>
-              {"\uC544\uC9C1 \uB4F1\uB85D\uB41C \uB9AC\uBDF0\uAC00 \uC5C6\uC2B5\uB2C8\uB2E4. \uCCAB \uB9AC\uBDF0\uB97C \uB0A8\uACA8\uBCF4\uC138\uC694."}
+          <h2 style={{ marginBottom: 16 }}>{`리뷰 ${reviews.length}개`}</h2>
+          <ReviewForm currentUser={currentUser} onSubmit={handleReviewSubmit} submitting={submitting} />
+          {submitMessage ? (
+            <div
+              style={{
+                marginBottom: 16,
+                padding: "12px 16px",
+                borderRadius: 8,
+                background: "#24311f",
+                color: "#c9f5b0",
+                border: "1px solid #3f5c33",
+              }}
+            >
+              {submitMessage}
             </div>
-          ) : (
-            reviews.map((review) => (
-              <ReviewItem
-                key={review.id}
-                review={review}
-                currentUser={currentUser}
-                editingReviewId={editingReviewId}
-                actionLoading={reviewActionLoading}
-                onStartEdit={setEditingReviewId}
-                onCancelEdit={() => setEditingReviewId(null)}
-                onSaveEdit={handleSaveEdit}
-                onDelete={handleDelete}
-              />
-            ))
-          )}
-        </div>
+          ) : null}
+          <div>
+            {reviews.length === 0 ? (
+              <div style={{ color: "#9aa6b2", textAlign: "center", padding: 24 }}>
+                아직 등록된 리뷰가 없습니다. 첫 리뷰를 남겨보세요.
+              </div>
+            ) : (
+              reviews.map((review) => (
+                <ReviewItem
+                  key={review.id}
+                  review={review}
+                  currentUser={currentUser}
+                  editingReviewId={editingReviewId}
+                  actionLoading={reviewActionLoading}
+                  onStartEdit={setEditingReviewId}
+                  onCancelEdit={() => setEditingReviewId(null)}
+                  onSaveEdit={handleSaveEdit}
+                  onDelete={handleDelete}
+                />
+              ))
+            )}
+          </div>
         </section>
       </div>
     </div>
