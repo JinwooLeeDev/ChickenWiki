@@ -44,15 +44,18 @@ export default function Header() {
 
     syncUser();
     window.addEventListener("storage", syncUser);
+    window.addEventListener("chickenwiki-auth-changed", syncUser);
 
     return () => {
       window.removeEventListener("storage", syncUser);
+      window.removeEventListener("chickenwiki-auth-changed", syncUser);
     };
   }, []);
 
   const handleLogout = () => {
     localStorage.removeItem("chickenwikiUser");
     setCurrentUser(null);
+    window.dispatchEvent(new Event("chickenwiki-auth-changed"));
   };
 
   return (
