@@ -13,5 +13,7 @@ public class ReviewDto {
     private String author;
     private Integer rating;
     private String content;
+    private Long likeCount;
+    private Boolean likedByCurrentUser;
     private LocalDateTime createdAt;
 }

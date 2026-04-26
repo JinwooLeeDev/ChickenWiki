@@ -15,4 +15,6 @@ public class MenuDto {
     private String description;
     private String brandName;
     private LocalDateTime crawledAt;
+    private Long reviewCount;
+    private Double averageRating;
 }

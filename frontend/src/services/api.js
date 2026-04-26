@@ -55,7 +55,9 @@ export async function getMenu(menuId) {
 
 export async function getMenuReviews(menuId) {
   try {
-    const res = await fetch(`/api/menus/${menuId}/reviews`);
+    const res = await fetch(`/api/menus/${menuId}/reviews`, {
+      headers: getAuthHeaders(),
+    });
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     return await res.json();
   } catch (e) {
@@ -148,6 +150,24 @@ export async function deleteMenuReview(menuId, reviewId) {
   }
 }
 
+export async function recommendMenuReview(menuId, reviewId) {
+  try {
+    const res = await fetch(`/api/menus/${menuId}/reviews/${reviewId}/recommend`, {
+      method: 'POST',
+      headers: getAuthHeaders(),
+    });
+
+    if (!res.ok) {
+      throw new Error(await parseError(res, '리뷰 추천에 실패했습니다.'));
+    }
+
+    return await res.json();
+  } catch (e) {
+    console.error('recommendMenuReview error', e);
+    throw e;
+  }
+}
+
 export async function signup(payload) {
   const res = await fetch('/api/users/signup', {
     method: 'POST',
@@ -190,4 +210,27 @@ export async function getMyPage() {
   }
 
   return await res.json();
+}
+
+export async function getAdminUserByNickname(nickname) {
+  const res = await fetch(`/api/users/admin/by-nickname/${encodeURIComponent(nickname)}`, {
+    headers: getAuthHeaders(),
+  });
+
+  if (!res.ok) {
+    throw new Error(await parseError(res, '사용자 정보를 불러오지 못했습니다.'));
+  }
+
+  return await res.json();
+}
+
+export async function deleteAdminUserByNickname(nickname) {
+  const res = await fetch(`/api/users/admin/by-nickname/${encodeURIComponent(nickname)}`, {
+    method: 'DELETE',
+    headers: getAuthHeaders(),
+  });
+
+  if (!res.ok) {
+    throw new Error(await parseError(res, '계정을 삭제하지 못했습니다.'));
+  }
 }

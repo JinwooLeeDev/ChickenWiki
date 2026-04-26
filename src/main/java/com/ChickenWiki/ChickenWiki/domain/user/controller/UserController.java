@@ -8,7 +8,9 @@ import com.ChickenWiki.ChickenWiki.domain.user.entity.User;
 import com.ChickenWiki.ChickenWiki.domain.user.service.UserSessionService;
 import com.ChickenWiki.ChickenWiki.domain.user.service.UserService;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -40,5 +42,19 @@ public class UserController {
     public UserMyPageResponse me(@RequestHeader("Authorization") String authorizationHeader) {
         User currentUser = userSessionService.getUserByAuthorizationHeader(authorizationHeader);
         return userService.getMyPage(currentUser);
+    }
+
+    @GetMapping("/admin/by-nickname/{nickname}")
+    public UserMyPageResponse getAdminUserByNickname(@PathVariable String nickname,
+                                                     @RequestHeader("Authorization") String authorizationHeader) {
+        User currentUser = userSessionService.getUserByAuthorizationHeader(authorizationHeader);
+        return userService.getAdminUserProfile(nickname, currentUser);
+    }
+
+    @DeleteMapping("/admin/by-nickname/{nickname}")
+    public void deleteUserByNickname(@PathVariable String nickname,
+                                     @RequestHeader("Authorization") String authorizationHeader) {
+        User currentUser = userSessionService.getUserByAuthorizationHeader(authorizationHeader);
+        userService.deleteUserByNickname(nickname, currentUser);
     }
 }

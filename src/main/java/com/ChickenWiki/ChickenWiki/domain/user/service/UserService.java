@@ -3,6 +3,7 @@ package com.ChickenWiki.ChickenWiki.domain.user.service;
 import com.ChickenWiki.ChickenWiki.domain.brand.entity.Menu;
 import com.ChickenWiki.ChickenWiki.domain.brand.repository.MenuRepository;
 import com.ChickenWiki.ChickenWiki.domain.review.entity.Review;
+import com.ChickenWiki.ChickenWiki.domain.review.repository.ReviewLikeRepository;
 import com.ChickenWiki.ChickenWiki.domain.review.repository.ReviewRepository;
 import com.ChickenWiki.ChickenWiki.domain.user.dto.UserAuthResponse;
 import com.ChickenWiki.ChickenWiki.domain.user.dto.UserLoginRequest;
@@ -29,16 +30,19 @@ public class UserService {
     private final UserRepository userRepository;
     private final UserSessionService userSessionService;
     private final ReviewRepository reviewRepository;
+    private final ReviewLikeRepository reviewLikeRepository;
     private final MenuRepository menuRepository;
     private final BCryptPasswordEncoder passwordEncoder = new BCryptPasswordEncoder();
 
     public UserService(UserRepository userRepository,
                        UserSessionService userSessionService,
                        ReviewRepository reviewRepository,
+                       ReviewLikeRepository reviewLikeRepository,
                        MenuRepository menuRepository) {
         this.userRepository = userRepository;
         this.userSessionService = userSessionService;
         this.reviewRepository = reviewRepository;
+        this.reviewLikeRepository = reviewLikeRepository;
         this.menuRepository = menuRepository;
     }
 
@@ -82,40 +86,42 @@ public class UserService {
 
     @Transactional(readOnly = true)
     public UserMyPageResponse getMyPage(User user) {
-        List<Review> reviews = reviewRepository.findByAuthorOrderByCreatedAtDesc(user.getNickname());
+        return buildUserProfileResponse(user);
+    }
 
-        Map<Long, Menu> menuById = menuRepository.findAllById(
-                        reviews.stream()
-                                .map(Review::getMenuId)
-                                .distinct()
-                                .collect(Collectors.toList())
-                ).stream()
-                .collect(Collectors.toMap(Menu::getId, Function.identity()));
+    @Transactional(readOnly = true)
+    public UserMyPageResponse getAdminUserProfile(String nickname, User adminUser) {
+        validateAdmin(adminUser);
 
-        List<UserReviewSummaryResponse> reviewResponses = reviews.stream()
-                .map(review -> {
-                    Menu menu = menuById.get(review.getMenuId());
-                    return new UserReviewSummaryResponse(
-                            review.getId(),
-                            review.getMenuId(),
-                            menu != null ? menu.getMenuName() : "삭제되었거나 없는 메뉴",
-                            menu != null ? menu.getBrandName() : "",
-                            menu != null ? menu.getMenuImageUrl() : null,
-                            review.getRating(),
-                            review.getContent(),
-                            review.getCreatedAt()
-                    );
-                })
+        User targetUser = userRepository.findByNickname(normalizeNickname(nickname))
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "사용자를 찾을 수 없습니다."));
+
+        return buildUserProfileResponse(targetUser);
+    }
+
+    public void deleteUserByNickname(String nickname, User adminUser) {
+        validateAdmin(adminUser);
+
+        User targetUser = userRepository.findByNickname(normalizeNickname(nickname))
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "사용자를 찾을 수 없습니다."));
+
+        if (targetUser.getId().equals(adminUser.getId())) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "본인 관리자 계정은 삭제할 수 없습니다.");
+        }
+
+        List<Review> reviews = reviewRepository.findByAuthorOrderByCreatedAtDesc(targetUser.getNickname());
+        List<Long> reviewIds = reviews.stream()
+                .map(Review::getId)
                 .collect(Collectors.toList());
 
-        return new UserMyPageResponse(
-                user.getId(),
-                user.getUsername(),
-                user.getNickname(),
-                user.getRole(),
-                user.getCreatedAt(),
-                reviewResponses
-        );
+        if (!reviewIds.isEmpty()) {
+            reviewLikeRepository.deleteByReviewIdIn(reviewIds);
+            reviewRepository.deleteAll(reviews);
+        }
+
+        reviewLikeRepository.deleteByUserId(targetUser.getId());
+        userSessionService.invalidateSessionsForUser(targetUser.getId());
+        userRepository.delete(targetUser);
     }
 
     private UserAuthResponse toResponse(User user) {
@@ -184,5 +190,48 @@ public class UserService {
         }
 
         return normalized;
+    }
+
+    private UserMyPageResponse buildUserProfileResponse(User user) {
+        List<Review> reviews = reviewRepository.findByAuthorOrderByCreatedAtDesc(user.getNickname());
+
+        Map<Long, Menu> menuById = menuRepository.findAllById(
+                        reviews.stream()
+                                .map(Review::getMenuId)
+                                .distinct()
+                                .collect(Collectors.toList())
+                ).stream()
+                .collect(Collectors.toMap(Menu::getId, Function.identity()));
+
+        List<UserReviewSummaryResponse> reviewResponses = reviews.stream()
+                .map(review -> {
+                    Menu menu = menuById.get(review.getMenuId());
+                    return new UserReviewSummaryResponse(
+                            review.getId(),
+                            review.getMenuId(),
+                            menu != null ? menu.getMenuName() : "삭제되었거나 없는 메뉴",
+                            menu != null ? menu.getBrandName() : "",
+                            menu != null ? menu.getMenuImageUrl() : null,
+                            review.getRating(),
+                            review.getContent(),
+                            review.getCreatedAt()
+                    );
+                })
+                .collect(Collectors.toList());
+
+        return new UserMyPageResponse(
+                user.getId(),
+                user.getUsername(),
+                user.getNickname(),
+                user.getRole(),
+                user.getCreatedAt(),
+                reviewResponses
+        );
+    }
+
+    private void validateAdmin(User user) {
+        if (!"ADMIN".equalsIgnoreCase(user.getRole())) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "관리자만 접근할 수 있습니다.");
+        }
     }
 }

@@ -1,13 +1,16 @@
 import React, { useEffect, useState } from "react";
-import { Link, useParams } from "react-router-dom";
+import { Link, useNavigate, useParams } from "react-router-dom";
 import Header from "./Header";
 import {
   createMenuReview,
   deleteMenuReview,
   getMenu,
   getMenuReviews,
+  recommendMenuReview,
   updateMenuReview,
 } from "../services/api";
+
+const REVIEWS_PER_PAGE = 15;
 
 const pageStyles = {
   pageBackdrop: {
@@ -44,6 +47,43 @@ function formatPrice(value) {
   return `${value.toLocaleString()}원`;
 }
 
+function toTimestamp(value) {
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? 0 : date.getTime();
+}
+
+function sortReviews(reviews, sortOption) {
+  const sorted = [...reviews];
+
+  sorted.sort((a, b) => {
+    if (sortOption === "rating") {
+      if (b.rating !== a.rating) {
+        return b.rating - a.rating;
+      }
+      return toTimestamp(b.createdAt) - toTimestamp(a.createdAt);
+    }
+
+    if (sortOption === "likes") {
+      const likeGap = (b.likeCount || 0) - (a.likeCount || 0);
+      if (likeGap !== 0) {
+        return likeGap;
+      }
+      if (b.rating !== a.rating) {
+        return b.rating - a.rating;
+      }
+      return toTimestamp(b.createdAt) - toTimestamp(a.createdAt);
+    }
+
+    const latestGap = toTimestamp(b.createdAt) - toTimestamp(a.createdAt);
+    if (latestGap !== 0) {
+      return latestGap;
+    }
+    return b.rating - a.rating;
+  });
+
+  return sorted;
+}
+
 function readStoredUser() {
   try {
     const storedUser = localStorage.getItem("chickenwikiUser");
@@ -71,12 +111,17 @@ function ReviewItem({
   currentUser,
   editingReviewId,
   actionLoading,
+  recommendLoading,
   onStartEdit,
   onCancelEdit,
   onSaveEdit,
   onDelete,
+  onRecommend,
+  onOpenAuthorProfile,
 }) {
   const isOwner = currentUser?.nickname === review.author;
+  const isAdmin = currentUser?.role === "ADMIN";
+  const canDelete = isOwner || isAdmin;
   const isEditing = editingReviewId === review.id;
   const [content, setContent] = useState(review.content);
   const [rating, setRating] = useState(review.rating);
@@ -98,12 +143,14 @@ function ReviewItem({
     });
   };
 
+  const recommendButtonDisabled = recommendLoading || review.likedByCurrentUser;
+
   return (
     <div
       style={{
         background: "#1a1a1a",
-        padding: 16,
-        borderRadius: 8,
+        padding: "18px 18px 16px",
+        borderRadius: 10,
         marginBottom: 12,
         color: "white",
       }}
@@ -112,128 +159,193 @@ function ReviewItem({
         style={{
           display: "flex",
           justifyContent: "space-between",
-          alignItems: "center",
-          marginBottom: 8,
+          alignItems: "flex-start",
           gap: 12,
         }}
       >
-        <div style={{ fontWeight: 600 }}>{review.author}</div>
-        <div style={{ color: "#ffd700" }}>
-          {"★".repeat(isEditing ? rating : review.rating)}
-          {"☆".repeat(5 - (isEditing ? rating : review.rating))}
-        </div>
-      </div>
-
-      {isEditing ? (
-        <div style={{ display: "grid", gap: 12, marginBottom: 12 }}>
-          <textarea
-            value={content}
-            onChange={(e) => setContent(e.target.value)}
-            rows={4}
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div
             style={{
-              width: "100%",
-              padding: "12px 14px",
-              borderRadius: 12,
-              border: "1px solid #2c3138",
-              background: "#101318",
-              color: "white",
-              resize: "vertical",
-            }}
-          />
-          <select
-            value={rating}
-            onChange={(e) => setRating(parseInt(e.target.value, 10))}
-            style={{
-              width: 120,
-              padding: "10px 12px",
-              borderRadius: 10,
-              border: "1px solid #333942",
-              background: "#171a20",
-              color: "white",
+              display: "flex",
+              alignItems: "center",
+              gap: 10,
+              flexWrap: "wrap",
+              marginBottom: 6,
             }}
           >
-            {[1, 2, 3, 4, 5].map((n) => (
-              <option key={n} value={n}>
-                {`${n}점`}
-              </option>
-            ))}
-          </select>
-        </div>
-      ) : (
-        <div style={{ color: "#ccc", marginBottom: 12 }}>{review.content}</div>
-      )}
-
-      <div style={{ fontSize: 12, color: "#777" }}>{formatDate(review.createdAt)}</div>
-
-      {isOwner ? (
-        <div style={{ display: "flex", gap: 8, marginTop: 12, justifyContent: "flex-end" }}>
-          {isEditing ? (
-            <>
+            {isAdmin ? (
               <button
                 type="button"
-                onClick={handleSave}
-                disabled={actionLoading}
+                onClick={() => onOpenAuthorProfile(review.author)}
                 style={{
-                  padding: "8px 12px",
-                  borderRadius: 10,
+                  padding: 0,
                   border: "none",
-                  background: "#f6d365",
-                  color: "#17191d",
-                  fontWeight: 700,
-                  opacity: actionLoading ? 0.7 : 1,
+                  background: "transparent",
+                  color: "white",
+                  fontWeight: 600,
+                  cursor: "pointer",
+                  textDecoration: "underline",
+                  textUnderlineOffset: 3,
                 }}
               >
-                {actionLoading ? "저장 중..." : "저장"}
+                {review.author}
               </button>
-              <button
-                type="button"
-                onClick={onCancelEdit}
-                disabled={actionLoading}
+            ) : (
+              <div style={{ fontWeight: 600 }}>{review.author}</div>
+            )}
+            <div style={{ fontSize: 12, color: "#777" }}>{formatDate(review.createdAt)}</div>
+          </div>
+          <div style={{ color: "#ffd700", marginBottom: 12 }}>
+            {"★".repeat(isEditing ? rating : review.rating)}
+            {"☆".repeat(5 - (isEditing ? rating : review.rating))}
+          </div>
+          {isEditing ? (
+            <div style={{ display: "grid", gap: 12 }}>
+              <textarea
+                value={content}
+                onChange={(e) => setContent(e.target.value)}
+                rows={4}
                 style={{
-                  padding: "8px 12px",
+                  width: "100%",
+                  padding: "12px 14px",
+                  borderRadius: 12,
+                  border: "1px solid #2c3138",
+                  background: "#101318",
+                  color: "white",
+                  resize: "vertical",
+                }}
+              />
+              <select
+                value={rating}
+                onChange={(e) => setRating(parseInt(e.target.value, 10))}
+                style={{
+                  width: 120,
+                  padding: "10px 12px",
                   borderRadius: 10,
-                  border: "1px solid #39414d",
-                  background: "#181b21",
+                  border: "1px solid #333942",
+                  background: "#171a20",
                   color: "white",
                 }}
               >
-                취소
-              </button>
-            </>
+                {[1, 2, 3, 4, 5].map((n) => (
+                  <option key={n} value={n}>
+                    {`${n}점`}
+                  </option>
+                ))}
+              </select>
+            </div>
           ) : (
-            <>
-              <button
-                type="button"
-                onClick={() => onStartEdit(review.id)}
-                disabled={actionLoading}
-                style={{
-                  padding: "8px 12px",
-                  borderRadius: 10,
-                  border: "1px solid #39414d",
-                  background: "#181b21",
-                  color: "white",
-                }}
-              >
-                수정
-              </button>
-              <button
-                type="button"
-                onClick={() => onDelete(review.id)}
-                disabled={actionLoading}
-                style={{
-                  padding: "8px 12px",
-                  borderRadius: 10,
-                  border: "1px solid #5a3038",
-                  background: "#2b171b",
-                  color: "#ffccd3",
-                }}
-              >
-                삭제
-              </button>
-            </>
+            <div style={{ color: "#ccc", lineHeight: 1.7 }}>{review.content}</div>
           )}
         </div>
-      ) : null}
+        <div
+          style={{
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "flex-end",
+            gap: 8,
+            minWidth: 148,
+            flexShrink: 0,
+          }}
+        >
+          <button
+            type="button"
+            onClick={() => onRecommend(review)}
+            disabled={recommendButtonDisabled}
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 6,
+              padding: "7px 12px",
+              borderRadius: 999,
+              border: review.likedByCurrentUser ? "1px solid #6e5a1b" : "1px solid #39414d",
+              background: review.likedByCurrentUser ? "#2d2614" : "#181b21",
+              color: review.likedByCurrentUser ? "#ffe29a" : "#d7dee7",
+              fontSize: 13,
+              fontWeight: 700,
+              cursor: recommendButtonDisabled ? "not-allowed" : "pointer",
+              opacity: recommendLoading ? 0.7 : 1,
+            }}
+          >
+            <span>👍</span>
+            <span>{review.likedByCurrentUser ? "추천 완료" : "추천"}</span>
+            <span>{review.likeCount || 0}</span>
+          </button>
+          {canDelete ? (
+            isEditing ? (
+              <div style={{ display: "flex", gap: 6, marginTop: 4 }}>
+                <button
+                  type="button"
+                  onClick={handleSave}
+                  disabled={actionLoading}
+                  style={{
+                    padding: "7px 11px",
+                    borderRadius: 10,
+                    border: "none",
+                    background: "#f6d365",
+                    color: "#17191d",
+                    fontWeight: 700,
+                    fontSize: 13,
+                    opacity: actionLoading ? 0.7 : 1,
+                  }}
+                >
+                  {actionLoading ? "저장 중" : "저장"}
+                </button>
+                <button
+                  type="button"
+                  onClick={onCancelEdit}
+                  disabled={actionLoading}
+                  style={{
+                    padding: "7px 11px",
+                    borderRadius: 10,
+                    border: "1px solid #39414d",
+                    background: "#181b21",
+                    color: "white",
+                    fontSize: 13,
+                  }}
+                >
+                  취소
+                </button>
+              </div>
+            ) : (
+              <div style={{ display: "flex", gap: 6, marginTop: 4 }}>
+                {isOwner ? (
+                  <button
+                    type="button"
+                    onClick={() => onStartEdit(review.id)}
+                    disabled={actionLoading}
+                    style={{
+                      padding: "7px 11px",
+                      borderRadius: 10,
+                      border: "1px solid #39414d",
+                      background: "#181b21",
+                      color: "white",
+                      fontSize: 13,
+                    }}
+                  >
+                    수정
+                  </button>
+                ) : null}
+                <button
+                  type="button"
+                  onClick={() => onDelete(review.id)}
+                  disabled={actionLoading}
+                  style={{
+                    padding: "7px 11px",
+                    borderRadius: 10,
+                    border: "1px solid #5a3038",
+                    background: "#2b171b",
+                    color: "#ffccd3",
+                    fontSize: 13,
+                  }}
+                >
+                  {isOwner ? "삭제" : "관리자 삭제"}
+                </button>
+              </div>
+            )
+          ) : null}
+        </div>
+      </div>
     </div>
   );
 }
@@ -407,15 +519,19 @@ function ReviewForm({ currentUser, onSubmit, submitting }) {
 
 export default function MenuReviewPage() {
   const { id } = useParams();
+  const navigate = useNavigate();
   const menuId = parseInt(id, 10);
   const [menu, setMenu] = useState(null);
   const [reviews, setReviews] = useState([]);
+  const [sortOption, setSortOption] = useState("likes");
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [reviewActionLoading, setReviewActionLoading] = useState(false);
+  const [recommendLoadingId, setRecommendLoadingId] = useState(null);
   const [editingReviewId, setEditingReviewId] = useState(null);
+  const [currentPage, setCurrentPage] = useState(1);
   const [error, setError] = useState("");
-  const [submitMessage, setSubmitMessage] = useState("");
+  const [toast, setToast] = useState({ id: 0, message: "", hiding: false });
   const [currentUser, setCurrentUser] = useState(null);
 
   useEffect(() => {
@@ -444,7 +560,6 @@ export default function MenuReviewPage() {
     async function loadMenuPage() {
       setLoading(true);
       setError("");
-      setSubmitMessage("");
 
       try {
         const [menuData, reviewData] = await Promise.all([getMenu(menuId), getMenuReviews(menuId)]);
@@ -484,7 +599,38 @@ export default function MenuReviewPage() {
     return () => {
       mounted = false;
     };
-  }, [menuId]);
+  }, [menuId, currentUser?.token]);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [sortOption, reviews.length]);
+
+  useEffect(() => {
+    if (!toast.message) {
+      return undefined;
+    }
+
+    const hideTimeoutId = window.setTimeout(() => {
+      setToast((prev) => (prev.id === toast.id ? { ...prev, hiding: true } : prev));
+    }, 1500);
+
+    const clearTimeoutId = window.setTimeout(() => {
+      setToast((prev) => (prev.id === toast.id ? { id: 0, message: "", hiding: false } : prev));
+    }, 1900);
+
+    return () => {
+      window.clearTimeout(hideTimeoutId);
+      window.clearTimeout(clearTimeoutId);
+    };
+  }, [toast]);
+
+  const showToast = (message) => {
+    setToast({
+      id: Date.now(),
+      message,
+      hiding: false,
+    });
+  };
 
   const handleReviewSubmit = async (newReview) => {
     if (!currentUser?.token) {
@@ -494,10 +640,10 @@ export default function MenuReviewPage() {
 
     try {
       setSubmitting(true);
-      setSubmitMessage("");
       const createdReview = await createMenuReview(menuId, newReview);
       setReviews((prev) => [createdReview, ...prev]);
-      setSubmitMessage("리뷰가 등록되었습니다.");
+      setCurrentPage(1);
+      showToast("리뷰를 작성했습니다.");
       return true;
     } catch (e) {
       alert(
@@ -520,11 +666,10 @@ export default function MenuReviewPage() {
 
     try {
       setReviewActionLoading(true);
-      setSubmitMessage("");
       const updatedReview = await updateMenuReview(menuId, reviewId, payload);
       setReviews((prev) => prev.map((review) => (review.id === reviewId ? updatedReview : review)));
       setEditingReviewId(null);
-      setSubmitMessage("리뷰가 수정되었습니다.");
+      showToast("리뷰를 수정했습니다.");
     } catch (e) {
       if (isAuthErrorMessage(e.message)) {
         setEditingReviewId(null);
@@ -544,19 +689,24 @@ export default function MenuReviewPage() {
       return;
     }
 
-    if (!window.confirm("리뷰를 삭제하시겠습니까?")) {
+    const targetReview = reviews.find((review) => review.id === reviewId);
+    const isOwner = targetReview?.author === currentUser?.nickname;
+    const confirmMessage = isOwner
+      ? "리뷰를 삭제하시겠습니까?"
+      : "관리자 권한으로 이 리뷰를 삭제하시겠습니까?";
+
+    if (!window.confirm(confirmMessage)) {
       return;
     }
 
     try {
       setReviewActionLoading(true);
-      setSubmitMessage("");
       await deleteMenuReview(menuId, reviewId);
       setReviews((prev) => prev.filter((review) => review.id !== reviewId));
       if (editingReviewId === reviewId) {
         setEditingReviewId(null);
       }
-      setSubmitMessage("리뷰가 삭제되었습니다.");
+      showToast("리뷰를 삭제했습니다.");
     } catch (e) {
       if (isAuthErrorMessage(e.message)) {
         setEditingReviewId(null);
@@ -569,6 +719,51 @@ export default function MenuReviewPage() {
       setReviewActionLoading(false);
     }
   };
+
+  const handleOpenAuthorProfile = (nickname) => {
+    if (currentUser?.role !== "ADMIN") {
+      return;
+    }
+
+    navigate(`/admin/users/${encodeURIComponent(nickname)}`);
+  };
+
+  const handleRecommend = async (review) => {
+    if (review.likedByCurrentUser) {
+      return;
+    }
+
+    if (!currentUser?.token) {
+      alert("리뷰 추천은 로그인 후 이용할 수 있어요.");
+      return;
+    }
+
+    try {
+      setRecommendLoadingId(review.id);
+      const updatedReview = await recommendMenuReview(menuId, review.id);
+      setReviews((prev) => prev.map((item) => (item.id === review.id ? updatedReview : item)));
+      showToast("추천했습니다.");
+    } catch (e) {
+      alert(
+        isAuthErrorMessage(e.message)
+          ? "리뷰 추천은 로그인 후 이용할 수 있어요."
+          : e.message || "리뷰 추천에 실패했습니다."
+      );
+    } finally {
+      setRecommendLoadingId(null);
+    }
+  };
+
+  const sortedReviews = sortReviews(reviews, sortOption);
+  const totalPages = Math.ceil(sortedReviews.length / REVIEWS_PER_PAGE);
+  const safeCurrentPage = totalPages === 0 ? 1 : Math.min(currentPage, totalPages);
+  const pagedReviews =
+    totalPages <= 1
+      ? sortedReviews
+      : sortedReviews.slice(
+          (safeCurrentPage - 1) * REVIEWS_PER_PAGE,
+          safeCurrentPage * REVIEWS_PER_PAGE
+        );
 
   if (loading) {
     return (
@@ -634,45 +829,169 @@ export default function MenuReviewPage() {
         </section>
 
         <section style={{ marginTop: 36 }}>
-          <h2 style={{ marginBottom: 16 }}>{`리뷰 ${reviews.length}개`}</h2>
-          <ReviewForm currentUser={currentUser} onSubmit={handleReviewSubmit} submitting={submitting} />
-          {submitMessage ? (
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center",
+              gap: 16,
+              marginBottom: 16,
+              flexWrap: "wrap",
+            }}
+          >
+            <h2 style={{ margin: 0 }}>{`리뷰 ${reviews.length}개`}</h2>
             <div
               style={{
-                marginBottom: 16,
-                padding: "12px 16px",
-                borderRadius: 8,
-                background: "#24311f",
-                color: "#c9f5b0",
-                border: "1px solid #3f5c33",
+                display: "flex",
+                alignItems: "center",
+                gap: 10,
+                padding: "8px 12px",
+                borderRadius: 12,
+                background: "#171a20",
+                border: "1px solid #2c3138",
               }}
             >
-              {submitMessage}
+              <span style={{ color: "#9aa6b2", fontSize: 13, fontWeight: 700 }}>정렬</span>
+              <select
+                value={sortOption}
+                onChange={(e) => setSortOption(e.target.value)}
+                style={{
+                  padding: "8px 28px 8px 10px",
+                  borderRadius: 10,
+                  border: "1px solid #333942",
+                  background: "#101318",
+                  color: "white",
+                  fontSize: 13,
+                  fontWeight: 700,
+                  cursor: "pointer",
+                }}
+              >
+                <option value="latest">최신순</option>
+                <option value="rating">평점순</option>
+                <option value="likes">추천순</option>
+              </select>
             </div>
-          ) : null}
+          </div>
           <div>
             {reviews.length === 0 ? (
               <div style={{ color: "#9aa6b2", textAlign: "center", padding: 24 }}>
                 아직 등록된 리뷰가 없습니다. 첫 리뷰를 남겨보세요.
               </div>
             ) : (
-              reviews.map((review) => (
+              pagedReviews.map((review) => (
                 <ReviewItem
                   key={review.id}
                   review={review}
                   currentUser={currentUser}
                   editingReviewId={editingReviewId}
                   actionLoading={reviewActionLoading}
+                  recommendLoading={recommendLoadingId === review.id}
                   onStartEdit={setEditingReviewId}
                   onCancelEdit={() => setEditingReviewId(null)}
                   onSaveEdit={handleSaveEdit}
                   onDelete={handleDelete}
+                  onRecommend={handleRecommend}
+                  onOpenAuthorProfile={handleOpenAuthorProfile}
                 />
               ))
             )}
           </div>
+          {totalPages > 1 ? (
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                gap: 8,
+                flexWrap: "wrap",
+                marginTop: 20,
+                marginBottom: 28,
+              }}
+            >
+              <button
+                type="button"
+                onClick={() => setCurrentPage((prev) => Math.max(1, prev - 1))}
+                disabled={safeCurrentPage === 1}
+                style={{
+                  padding: "8px 12px",
+                  borderRadius: 10,
+                  border: "1px solid #353a43",
+                  background: "#171a20",
+                  color: safeCurrentPage === 1 ? "#66707d" : "#d7dee7",
+                  cursor: safeCurrentPage === 1 ? "not-allowed" : "pointer",
+                }}
+              >
+                이전
+              </button>
+              {Array.from({ length: totalPages }, (_, index) => {
+                const pageNumber = index + 1;
+                const isActive = pageNumber === safeCurrentPage;
+
+                return (
+                  <button
+                    key={pageNumber}
+                    type="button"
+                    onClick={() => setCurrentPage(pageNumber)}
+                    style={{
+                      minWidth: 40,
+                      padding: "8px 12px",
+                      borderRadius: 10,
+                      border: isActive ? "1px solid #f6d365" : "1px solid #353a43",
+                      background: isActive ? "#2d2614" : "#171a20",
+                      color: isActive ? "#ffe29a" : "#d7dee7",
+                      fontWeight: 700,
+                      cursor: "pointer",
+                    }}
+                  >
+                    {pageNumber}
+                  </button>
+                );
+              })}
+              <button
+                type="button"
+                onClick={() => setCurrentPage((prev) => Math.min(totalPages, prev + 1))}
+                disabled={safeCurrentPage === totalPages}
+                style={{
+                  padding: "8px 12px",
+                  borderRadius: 10,
+                  border: "1px solid #353a43",
+                  background: "#171a20",
+                  color: safeCurrentPage === totalPages ? "#66707d" : "#d7dee7",
+                  cursor: safeCurrentPage === totalPages ? "not-allowed" : "pointer",
+                }}
+              >
+                다음
+              </button>
+            </div>
+          ) : null}
+          <div style={{ marginTop: 32 }}>
+            <ReviewForm currentUser={currentUser} onSubmit={handleReviewSubmit} submitting={submitting} />
+          </div>
         </section>
       </div>
+      {toast.message ? (
+        <div
+          style={{
+            position: "fixed",
+            left: "50%",
+            bottom: 34,
+            transform: toast.hiding ? "translateX(-50%) translateY(10px)" : "translateX(-50%) translateY(0)",
+            padding: "13px 24px",
+            borderRadius: 16,
+            background: "rgba(24, 28, 34, 0.96)",
+            color: "#f3f6fa",
+            border: "1px solid rgba(255, 255, 255, 0.08)",
+            boxShadow: "0 16px 36px rgba(0, 0, 0, 0.28)",
+            fontWeight: 700,
+            zIndex: 1000,
+            opacity: toast.hiding ? 0 : 1,
+            transition: "opacity 0.28s ease, transform 0.28s ease",
+            pointerEvents: "none",
+          }}
+        >
+          {toast.message}
+        </div>
+      ) : null}
     </div>
   );
 }

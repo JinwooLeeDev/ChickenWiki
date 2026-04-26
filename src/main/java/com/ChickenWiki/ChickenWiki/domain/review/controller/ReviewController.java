@@ -29,8 +29,10 @@ public class ReviewController {
     }
 
     @GetMapping
-    public List<ReviewDto> list(@PathVariable Long menuId) {
-        return reviewService.findByMenuId(menuId);
+    public List<ReviewDto> list(@PathVariable Long menuId,
+                                @RequestHeader(value = "Authorization", required = false) String authorizationHeader) {
+        User currentUser = userSessionService.findUserByAuthorizationHeaderOrNull(authorizationHeader);
+        return reviewService.findByMenuId(menuId, currentUser);
     }
 
     @PostMapping
@@ -55,6 +57,14 @@ public class ReviewController {
                        @PathVariable Long reviewId,
                        @RequestHeader("Authorization") String authorizationHeader) {
         User currentUser = userSessionService.getUserByAuthorizationHeader(authorizationHeader);
-        reviewService.delete(menuId, reviewId, currentUser.getNickname());
+        reviewService.delete(menuId, reviewId, currentUser);
+    }
+
+    @PostMapping("/{reviewId}/recommend")
+    public ReviewDto recommend(@PathVariable Long menuId,
+                               @PathVariable Long reviewId,
+                               @RequestHeader("Authorization") String authorizationHeader) {
+        User currentUser = userSessionService.getUserByAuthorizationHeader(authorizationHeader);
+        return reviewService.recommend(menuId, reviewId, currentUser);
     }
 }
