@@ -60,12 +60,44 @@ function formatPrice(value) {
   return `${value.toLocaleString()}\uC6D0`;
 }
 
+function sortMenus(menus, sortOption) {
+  const sorted = [...menus];
+
+  sorted.sort((a, b) => {
+    const aReviewCount = Number(a.reviewCount || 0);
+    const bReviewCount = Number(b.reviewCount || 0);
+    const aAverageRating = Number(a.averageRating || 0);
+    const bAverageRating = Number(b.averageRating || 0);
+
+    if (sortOption === "averageRating") {
+      if (bAverageRating !== aAverageRating) {
+        return bAverageRating - aAverageRating;
+      }
+      if (bReviewCount !== aReviewCount) {
+        return bReviewCount - aReviewCount;
+      }
+      return a.menuName.localeCompare(b.menuName, "ko");
+    }
+
+    if (bReviewCount !== aReviewCount) {
+      return bReviewCount - aReviewCount;
+    }
+    if (bAverageRating !== aAverageRating) {
+      return bAverageRating - aAverageRating;
+    }
+    return a.menuName.localeCompare(b.menuName, "ko");
+  });
+
+  return sorted;
+}
+
 export default function BrandDetailPage() {
   const { id } = useParams();
   const navigate = useNavigate();
   const brandId = parseInt(id, 10);
   const [brand, setBrand] = useState(null);
   const [menus, setMenus] = useState([]);
+  const [sortOption, setSortOption] = useState("reviewCount");
 
   useEffect(() => {
     let mounted = true;
@@ -74,12 +106,15 @@ export default function BrandDetailPage() {
       if (!mounted) return;
       setBrand(brandData);
       setMenus(menusData || []);
+      setSortOption("reviewCount");
     });
 
     return () => {
       mounted = false;
     };
   }, [brandId]);
+
+  const sortedMenus = sortMenus(menus, sortOption);
 
   function MenuCard({ menu }) {
     return (
@@ -164,11 +199,54 @@ export default function BrandDetailPage() {
               {"\uBE0C\uB79C\uB4DC\uB97C \uBC14\uAFD4\uB3C4 \uD398\uC774\uC9C0 \uBC30\uACBD \uD1A4\uC740 \uAC19\uAC8C \uC720\uC9C0\uB418\uB3C4\uB85D \uC815\uB9AC\uD55C \uBA54\uB274 \uBAA9\uB85D\uC785\uB2C8\uB2E4."}
             </p>
           </div>
-          <div style={{ ...pageStyles.menuGrid, marginTop: 24 }}>
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center",
+              gap: 16,
+              flexWrap: "wrap",
+              marginTop: 24,
+              marginBottom: 16,
+            }}
+          >
+            <div style={{ color: "#d8e0ea", fontSize: 18, fontWeight: 700 }}>{`메뉴 ${menus.length}개`}</div>
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 10,
+                padding: "8px 12px",
+                borderRadius: 12,
+                background: "#171a20",
+                border: "1px solid #2c3138",
+              }}
+            >
+              <span style={{ color: "#9aa6b2", fontSize: 13, fontWeight: 700 }}>정렬</span>
+              <select
+                value={sortOption}
+                onChange={(e) => setSortOption(e.target.value)}
+                style={{
+                  padding: "8px 28px 8px 10px",
+                  borderRadius: 10,
+                  border: "1px solid #333942",
+                  background: "#101318",
+                  color: "white",
+                  fontSize: 13,
+                  fontWeight: 700,
+                  cursor: "pointer",
+                }}
+              >
+                <option value="reviewCount">리뷰순</option>
+                <option value="averageRating">평점순</option>
+              </select>
+            </div>
+          </div>
+          <div style={{ ...pageStyles.menuGrid, marginTop: 8 }}>
             {menus.length === 0 ? (
               <div style={{ color: "#9aa6b2" }}>{"\uBA54\uB274\uAC00 \uC5C6\uC2B5\uB2C8\uB2E4."}</div>
             ) : (
-              menus.map((menu) => <MenuCard key={menu.id} menu={menu} />)
+              sortedMenus.map((menu) => <MenuCard key={menu.id} menu={menu} />)
             )}
           </div>
         </section>
