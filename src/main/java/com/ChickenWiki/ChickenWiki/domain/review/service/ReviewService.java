@@ -83,10 +83,14 @@ public class ReviewService {
         Review review = findReview(reviewId);
         validateMenu(review, menuId);
 
-        if (!reviewLikeRepository.existsByUserIdAndReviewId(currentUser.getId(), reviewId)) {
-            reviewLikeRepository.save(new ReviewLike(currentUser.getId(), reviewId));
+        boolean alreadyLiked = reviewLikeRepository.existsByUserIdAndReviewId(currentUser.getId(), reviewId);
+
+        if (alreadyLiked) {
+            reviewLikeRepository.deleteByUserIdAndReviewId(currentUser.getId(), reviewId);
+            return toDto(review, reviewLikeRepository.countByReviewId(reviewId), false);
         }
 
+        reviewLikeRepository.save(new ReviewLike(currentUser.getId(), reviewId));
         return toDto(review, reviewLikeRepository.countByReviewId(reviewId), true);
     }
 
