@@ -143,7 +143,7 @@ function ReviewItem({
     });
   };
 
-  const recommendButtonDisabled = recommendLoading || review.likedByCurrentUser;
+  const recommendButtonDisabled = recommendLoading;
 
   return (
     <div
@@ -729,10 +729,6 @@ export default function MenuReviewPage() {
   };
 
   const handleRecommend = async (review) => {
-    if (review.likedByCurrentUser) {
-      return;
-    }
-
     if (!currentUser?.token) {
       alert("리뷰 추천은 로그인 후 이용할 수 있어요.");
       return;
@@ -742,7 +738,7 @@ export default function MenuReviewPage() {
       setRecommendLoadingId(review.id);
       const updatedReview = await recommendMenuReview(menuId, review.id);
       setReviews((prev) => prev.map((item) => (item.id === review.id ? updatedReview : item)));
-      showToast("추천했습니다.");
+      showToast(updatedReview.likedByCurrentUser ? "추천했습니다." : "추천을 취소했습니다.");
     } catch (e) {
       alert(
         isAuthErrorMessage(e.message)
